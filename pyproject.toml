@@ -1,0 +1,26 @@
+[project]
+name = "image-to-3d-benchmark"
+version = "0.1.0"
+description = "Image-to-3D benchmark pipeline for evaluating various 3D generation engines."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "torchvision",
+    "Pillow",
+    "fastapi",
+    "uvicorn",
+    "trimesh",
+    "numpy",
+    "pydantic",
+    "lpips",
+    "scipy",
+    "open3d",
+    "rembg",
+    "huggingface-hub",
+    "pandas"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
