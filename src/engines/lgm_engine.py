@@ -59,7 +59,7 @@ class LGMEngine(AbstractEngine):
         """Load LGM U-Net and ImageDream multi-view diffusion pipeline."""
         try:
             import torch
-            from lgm.models.lgm import LGM
+            from core.models import LGM
             from diffusers import DDIMScheduler
             from mvdream.pipeline_mvdream import MVDreamPipeline  # ImageDream shares interface
 
