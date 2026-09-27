@@ -10,18 +10,24 @@ Speed:  ~10 s on A100
 
 Install:
     pip install git+https://github.com/microsoft/TRELLIS.git
-    # Also needs: spconv, flash-attn, diffusers, transformers
 """
 
 from __future__ import annotations
 
+import os
 import time
-import numpy as np
-from PIL import Image
+import gc
 from typing import Dict, Any, Literal
+
+import numpy as np
+import torch
+from PIL import Image
 
 from .base import AbstractEngine, ReconstructionResult, Mesh3D, GaussianCloud
 
+
+os.environ.setdefault("SPCONV_ALGO", "native")
+os.environ.setdefault("ATTN_BACKEND", "flash-attn")
 
 OutputFormat = Literal["mesh", "gaussian", "radiance_field"]
 
@@ -41,10 +47,9 @@ class TrellisEngine(AbstractEngine):
         self,
         device: str = "cuda",
         output_format: OutputFormat = "mesh",
-        # Sampling hyper-parameters (defaults match paper)
-        slat_steps: int = 12,          # ODE steps for structured latent stage
-        sparse_steps: int = 12,        # ODE steps for sparse structure stage
-        cfg_strength: float = 7.5,     # classifier-free guidance scale
+        slat_steps: int = 12,
+        sparse_steps: int = 12,
+        cfg_strength: float = 7.5,
     ):
         self.device = device
         self.output_format = output_format
@@ -78,7 +83,8 @@ class TrellisEngine(AbstractEngine):
         """
         Run full TRELLIS pipeline on a PIL image.
 
-        The image must already have background removed (RGBA or white-bg RGB).
+        The image must already have background removed (RGBA).
+        TRELLIS handles its own preprocessing internally.
 
         Returns
         -------
@@ -90,7 +96,6 @@ class TrellisEngine(AbstractEngine):
 
         t0 = time.time()
 
-        # TRELLIS expects RGBA or will auto-remove background
         if image.mode != "RGBA":
             image = image.convert("RGBA")
 
@@ -106,6 +111,7 @@ class TrellisEngine(AbstractEngine):
                 "steps": self.slat_steps,
                 "cfg_strength": self.cfg_strength,
             },
+            preprocess_image=True,
         )
 
         latency = time.time() - t0
@@ -119,28 +125,22 @@ class TrellisEngine(AbstractEngine):
             "sparse_steps": self.sparse_steps,
         }
 
-        # ---- Mesh output (FlexiCubes) ---------------------------------
         if self.output_format == "mesh":
-            raw = outputs["mesh"][0]   # trimesh.Trimesh
-
-            # TRELLIS meshes come with texture; extract vertex colors if present
-            if hasattr(raw.visual, "vertex_colors") and raw.visual.vertex_colors is not None:
-                vc = np.array(raw.visual.vertex_colors[:, :3], dtype=np.float32) / 255.0
-            else:
-                vc = None
-
+            raw = outputs["mesh"][0]
             mesh = Mesh3D(
-                vertices=np.array(raw.vertices, dtype=np.float32),
-                faces=np.array(raw.faces, dtype=np.int32),
-                vertex_colors=vc,
+                vertices=raw.vertices.cpu().numpy().astype(np.float32),
+                faces=raw.faces.cpu().numpy().astype(np.int32),
             )
-            metadata.update({"vertex_count": len(mesh.vertices), "face_count": len(mesh.faces)})
+            metadata.update({
+                "vertex_count": len(mesh.vertices),
+                "face_count": len(mesh.faces),
+            })
+            torch.cuda.empty_cache()
+            gc.collect()
             return ReconstructionResult(mesh=mesh, metadata=metadata)
 
-        # ---- 3D Gaussian output ---------------------------------------
-        elif self.output_format == "gaussian":
-            gs = outputs["gaussian"][0]  # TRELLIS Gaussian object
-
+        if self.output_format == "gaussian":
+            gs = outputs["gaussian"][0]
             gaussians = GaussianCloud(
                 positions=gs.get_xyz.detach().cpu().numpy().astype(np.float32),
                 scales=gs.get_scaling.detach().cpu().numpy().astype(np.float32),
@@ -149,13 +149,14 @@ class TrellisEngine(AbstractEngine):
                 sh_coeffs=gs.get_features[:, 0, :3].detach().cpu().numpy().astype(np.float32),
             )
             metadata.update({"gaussian_count": len(gaussians.positions)})
+            torch.cuda.empty_cache()
+            gc.collect()
             return ReconstructionResult(gaussians=gaussians, metadata=metadata)
 
-        else:
-            raise NotImplementedError(
-                f"output_format='{self.output_format}' not yet handled in this wrapper. "
-                "Use 'mesh' or 'gaussian'."
-            )
+        raise NotImplementedError(
+            f"output_format='{self.output_format}' not yet handled in this wrapper. "
+            "Use 'mesh' or 'gaussian'."
+        )
 
     def get_engine_info(self) -> Dict[str, Any]:
         return {

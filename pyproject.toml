@@ -16,9 +16,61 @@ dependencies = [
     "lpips",
     "scipy",
     "open3d",
-    "rembg",
+    "rembg[gpu]",
     "huggingface-hub",
     "pandas"
+]
+
+[project.optional-dependencies]
+triposr = [
+    "torchmcubes @ git+https://github.com/tatsy/torchmcubes.git",
+    "xatlas==0.0.9",
+    "omegaconf==2.3.0",
+]
+lgm = [
+    "tyro",
+    "kiui>=0.2.3",
+    "safetensors",
+    "einops",
+    "roma",
+    "plyfile",
+    "scikit-image",
+    "scikit-learn",
+    "diff-gaussian-rasterization @ git+https://github.com/ashawkey/diff-gaussian-rasterization.git",
+]
+trellis = [
+    "spconv @ git+https://github.com/traveller59/spconv.git",
+    "flash-attn @ git+https://github.com/Dao-AILab/flash-attention.git",
+    "xformers",
+    "diffoctreerast @ git+https://github.com/facebookresearch/diffoctreerast.git",
+    "nvdiffrast",
+    "easydict>=1.13",
+    "imageio[ffmpeg]",
+    "timm",
+    "kornia",
+]
+all = [
+    "torchmcubes @ git+https://github.com/tatsy/torchmcubes.git",
+    "xatlas==0.0.9",
+    "omegaconf==2.3.0",
+    "tyro",
+    "kiui>=0.2.3",
+    "safetensors",
+    "einops",
+    "roma",
+    "plyfile",
+    "scikit-image",
+    "scikit-learn",
+    "diff-gaussian-rasterization @ git+https://github.com/ashawkey/diff-gaussian-rasterization.git",
+    "spconv @ git+https://github.com/traveller59/spconv.git",
+    "flash-attn @ git+https://github.com/Dao-AILab/flash-attention.git",
+    "xformers",
+    "diffoctreerast @ git+https://github.com/facebookresearch/diffoctreerast.git",
+    "nvdiffrast",
+    "easydict>=1.13",
+    "imageio[ffmpeg]",
+    "timm",
+    "kornia",
 ]
 
 [build-system]

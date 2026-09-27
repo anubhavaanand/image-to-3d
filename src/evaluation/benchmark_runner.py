@@ -8,6 +8,7 @@ with a single shared protocol so results are directly comparable.
 
 from __future__ import annotations
 
+import gc
 import os
 import json
 import time
@@ -18,6 +19,7 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 import pandas as pd
 from PIL import Image
+import torch
 
 from ..engines.base import AbstractEngine
 from ..evaluation.chamfer_distance import compute_chamfer_distance
@@ -257,8 +259,8 @@ class BenchmarkRunner:
                     if self._bg_remover is not None:
                         image = self._bg_remover.remove(image)
                     else:
-                        # Composite RGBA onto white
-                        white = Image.new("RGB", image.size, "WHITE")
+                        # Composite RGBA onto white RGBA
+                        white = Image.new("RGBA", image.size, "WHITE")
                         white.paste(image, mask=image.split()[3])
                         image = white
 
@@ -287,36 +289,38 @@ class BenchmarkRunner:
 
                     # ---- rendering metrics (PSNR / LPIPS) ------------
                     render_metrics: Dict[str, Any] = {}
-                    if self.compute_render_metrics and result.mesh is not None:
-                        try:
-                            import torch
-                            pred_render = render_novel_view(result.mesh, azimuth_deg=45)
-                            if pred_render is not None:
-                                # For PSNR we need a GT render at the same angle.
-                                # We use the next available rendered view from GSO.
-                                gt_render_path = (
-                                    Path(sample["image_path"]).parent / "001.png"
-                                )
-                                if gt_render_path.exists():
-                                    gt_render = np.array(
-                                        Image.open(gt_render_path).convert("RGB")
-                                              .resize((256, 256))
+                    if self.compute_render_metrics:
+                        if result.mesh is not None:
+                            try:
+                                pred_render = render_novel_view(result.mesh, azimuth_deg=45)
+                                if pred_render is not None:
+                                    gt_render_path = (
+                                        Path(sample["image_path"]).parent / "001.png"
                                     )
-                                    render_metrics["psnr"] = float(
-                                        compute_psnr(pred_render, gt_render)
-                                    )
-                                    # LPIPS expects tensors in [-1,1] NCHW
-                                    def to_lpips_tensor(img_np):
-                                        t = torch.from_numpy(img_np).float() / 127.5 - 1.0
-                                        return t.permute(2, 0, 1).unsqueeze(0)
-                                    render_metrics["lpips"] = float(
-                                        compute_lpips(
-                                            to_lpips_tensor(pred_render),
-                                            to_lpips_tensor(gt_render),
+                                    if gt_render_path.exists():
+                                        gt_render = np.array(
+                                            Image.open(gt_render_path).convert("RGB")
+                                                  .resize((256, 256))
                                         )
-                                    )
-                        except Exception:
-                            pass
+                                        render_metrics["psnr"] = float(
+                                            compute_psnr(pred_render, gt_render)
+                                        )
+                                        def to_lpips_tensor(img_np):
+                                            t = torch.from_numpy(img_np).float() / 127.5 - 1.0
+                                            return t.permute(2, 0, 1).unsqueeze(0)
+                                        render_metrics["lpips"] = float(
+                                            compute_lpips(
+                                                to_lpips_tensor(pred_render),
+                                                to_lpips_tensor(gt_render),
+                                            )
+                                        )
+                            except Exception:
+                                pass
+                        elif result.gaussians is not None:
+                            render_metrics = {
+                                "psnr": float("nan"),
+                                "lpips": float("nan"),
+                            }
 
                     record = {
                         "engine": engine_name,
@@ -339,6 +343,9 @@ class BenchmarkRunner:
                         "sample_id": sample_id,
                         "error": str(exc),
                     })
+
+            gc.collect()
+            torch.cuda.empty_cache()
 
     # ------------------------------------------------------------------
     def get_results_df(self) -> pd.DataFrame:

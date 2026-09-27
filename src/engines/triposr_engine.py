@@ -46,6 +46,7 @@ class TriposrEngine(AbstractEngine):
         try:
             import torch
             from tsr.system import TSR  # installed via TripoSR repo
+            from tsr.utils import resize_foreground
 
             print("[TripoSR] Loading model from stabilityai/TripoSR …")
             self.model = TSR.from_pretrained(
@@ -55,6 +56,7 @@ class TriposrEngine(AbstractEngine):
             )
             self.model.renderer.set_chunk_size(self.chunk_size)
             self.model.to(self.device)
+            self._resize_foreground = resize_foreground
             print("[TripoSR] Model loaded.")
         except ImportError:
             raise ImportError(
@@ -66,8 +68,9 @@ class TriposrEngine(AbstractEngine):
         """
         Run full TripoSR pipeline on a PIL image.
 
-        The image must already have background removed and be composited
-        on a white background (use BackgroundRemover first).
+        The image must already have background removed (RGBA).
+        This engine applies TripoSR-specific foreground resizing and
+        gray-background compositing before inference.
 
         Returns
         -------
@@ -80,18 +83,20 @@ class TriposrEngine(AbstractEngine):
 
         t0 = time.time()
 
-        # Resize to 512×512 as expected by the model
-        image = image.resize((512, 512), Image.LANCZOS)
+        # Model-specific preprocessing: resize foreground to 85% of image size
+        image = self._resize_foreground(image, 0.85)
+
+        # Convert to numpy float32 and composite onto gray background
+        img_np = np.array(image).astype(np.float32) / 255.0
+        img_np = img_np[..., :3] * img_np[..., 3:4] + (1.0 - img_np[..., 3:4]) * 0.5
+        image_input = Image.fromarray((img_np * 255.0).astype(np.uint8))
 
         with torch.no_grad():
-            # scene_codes shape: (1, C)  — the triplane latent
-            scene_codes = self.model([image], device=self.device)
-
-            # Render meshes via Marching Cubes at resolution 256
+            scene_codes = self.model([image_input], device=self.device)
             meshes = self.model.extract_mesh(
                 scene_codes,
+                True,
                 resolution=256,
-                threshold=25.0,
             )
 
         mesh_obj = meshes[0]  # trimesh.Trimesh
@@ -104,11 +109,14 @@ class TriposrEngine(AbstractEngine):
             faces=np.array(mesh_obj.faces, dtype=np.int32),
             vertex_colors=(
                 np.array(mesh_obj.visual.vertex_colors[:, :3], dtype=np.float32) / 255.0
-                if mesh_obj.visual is not None and hasattr(mesh_obj.visual, "vertex_colors")
-                   and mesh_obj.visual.vertex_colors is not None
+                if mesh_obj.visual is not None
+                and hasattr(mesh_obj.visual, "vertex_colors")
+                and mesh_obj.visual.vertex_colors is not None
                 else None
             ),
         )
+
+        torch.cuda.empty_cache()
 
         return ReconstructionResult(
             mesh=result_mesh,

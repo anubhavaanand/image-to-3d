@@ -14,7 +14,7 @@ pyrender>=0.1.45
 lpips>=0.1.4
 
 # Background removal
-rembg>=2.0.50
+rembg[gpu]>=2.0.50
 onnxruntime
 
 # Web / API
@@ -32,11 +32,29 @@ accelerate>=0.27.0
 pandas>=2.0.0
 pydantic>=2.0.0
 
-# TripoSR  (install separately — not on PyPI)
-# pip install git+https://github.com/VAST-AI-Research/TripoSR.git
+# TripoSR dependencies
+torchmcubes @ git+https://github.com/tatsy/torchmcubes.git
+xatlas==0.0.9
+omegaconf==2.3.0
 
-# TRELLIS  (install separately — not on PyPI)
-# pip install git+https://github.com/microsoft/TRELLIS.git
+# LGM dependencies
+tyro
+kiui>=0.2.3
+safetensors
+einops
+roma
+plyfile
+scikit-image
+scikit-learn
+diff-gaussian-rasterization @ git+https://github.com/ashawkey/diff-gaussian-rasterization.git
 
-# LGM  (install separately — not on PyPI)
-# pip install git+https://github.com/3DTopia/LGM.git kiui
+# TRELLIS dependencies
+spconv @ git+https://github.com/traveller59/spconv.git
+flash-attn @ git+https://github.com/Dao-AILab/flash-attention.git
+xformers
+diffoctreerast @ git+https://github.com/facebookresearch/diffoctreerast.git
+nvdiffrast
+easydict>=1.13
+imageio[ffmpeg]
+timm
+kornia
