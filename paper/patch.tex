@@ -1,0 +1,5 @@
+The network optimizes the Conditional Flow Matching (CFM) \cite{rectifiedflow} objective, regressing a velocity vector field $v_\theta$ that defines the optimal transport path from a base noise distribution to the structured 3D latents. Unlike score-based diffusion, Rectified Flow encourages straight trajectory paths, dramatically accelerating inference:
+\begin{equation}
+\mathcal{L}_{\text{CFM}} = \mathbb{E}_{t, \mathbf{z}_0, \mathbf{z}_1} \Big[ \big\| v_\theta(\mathbf{z}_t, t) - (\mathbf{z}_1 - \mathbf{z}_0) \big\|^2 \Big]
+\end{equation}
+where $\mathbf{z}_t = (1-t)\mathbf{z}_0 + t\mathbf{z}_1$ defines the linear interpolation between the Gaussian noise $\mathbf{z}_0$ and the target data distribution $\mathbf{z}_1$.

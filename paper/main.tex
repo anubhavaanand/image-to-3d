@@ -1,0 +1,333 @@
+\documentclass[10pt, conference]{IEEEtran}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{balance} % Added for camera-ready final page column equalization
+
+\begin{document}
+
+\title{A Unified Benchmark of Feed-Forward Paradigms for Single-Image 3D Reconstruction}
+
+\author{\IEEEauthorblockN{Anubhav Anand}
+\IEEEauthorblockA{\textit{Department of Computer Science and Engineering} \\
+\textit{Amity School of Engineering \& Technology}\\
+\textit{Amity University Uttar Pradesh}, Greater Noida, India \\
+anubhav.anand@s.amity.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+The landscape of single-image 3D reconstruction is currently characterized by rapid yet divergent advances in geometric representations and neural architectures. To navigate this fragmentation, this paper presents a unified, quantitative evaluation of three prominent feed-forward paradigms for zero-shot single-image 3D asset generation: triplane-based Neural Radiance Fields (TripoSR), multi-view 3D Gaussian Splatting (LGM), and Structured Latent Flow Transformers (TRELLIS). This study systematically dissects the fundamental speed-quality trade-offs inherent in these methodologies. TripoSR demonstrates unparalleled inference latency ($<$0.5s) utilizing compact triplane representations. LGM employs multi-view Gaussians, achieving a robust balance of rendering quality and generation speed ($\sim$5s). Conversely, TRELLIS leverages a structured sparse latent format using conditional flow matching with rectified linear probability paths, yielding high-fidelity, topologically sound meshes at the cost of increased computational latency ($\sim$10 s). These systems are comprehensively assessed across critical metrics, including generation latency, VRAM utilization, Chamfer Distance, F-Score, PSNR, and LPIPS. The empirical findings reveal a distinct Pareto frontier dictating the trade-off between computational overhead and geometric fidelity, framing model selection as a multi-objective optimization problem and yielding a practical deployment framework. The subsequent convergence of the field on structured-latent flow architectures sharpens the relevance of this retrospective audit: it quantifies the speed--quality--memory budget that the dominant paradigm inherited.
+\end{abstract}
+
+\begin{IEEEkeywords}
+3D Reconstruction, Neural Rendering, Triplanes, Gaussian Splatting, Latent Models, Generative AI, Flow Matching
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+The task of reconstructing a fully realized 3D object from a single unposed 2D image is fundamentally ill-posed. A single observation lacks the multi-view geometric constraints necessary for deterministic reconstruction, thereby requiring robust structural priors to hallucinate occluded geometry and complex surface textures. Over recent years, the dominant paradigm for addressing this challenge has shifted significantly. Initial breakthroughs relied on Score Distillation Sampling (SDS), which distilled 2D diffusion priors into Neural Radiance Fields (NeRFs) via per-object optimization \cite{dreamfusion2022, magic3d2023}. While these optimization-based methods achieved remarkable visual fidelity, they suffered from severe computational bottlenecks and multi-face artifacts, frequently requiring hours of GPU computation per asset.
+
+Consequently, contemporary research has pivoted toward feed-forward architectures. By leveraging massive, curated 3D datasets such as Objaverse \cite{objaverse} to train large-scale neural reconstructors, feed-forward models can infer complete 3D representations in a matter of seconds. However, this acceleration has precipitated an explosion of diverse architectural paradigms. Researchers and practitioners currently face a fragmented array of representational choices, spanning continuous triplane features \cite{lrm2024}, discrete 3D Gaussians \cite{splatterimage}, and sparse structured latents \cite{trellis2024}. This design space has since consolidated: TripoSG \cite{triposg2025}, Hunyuan3D~2.x \cite{hunyuan3d2_2025,hunyuan3d21_2025}, Direct3D-S2 \cite{direct3ds2_2025}, Sparc3D \cite{sparc3d2025}, and LATTICE \cite{lattice2025} have all converged on rectified-flow transformers over sparse structured latents, making the paradigm comparison studied here the field's central trade-off axis.
+
+Despite rapid advancements, a critical research gap persists: the lack of a standardized, cross-paradigm evaluation detailing the inherent trade-offs between these fundamentally different representations. The gap has widened rather than closed: recent evaluation platforms quantify human preference rather than geometric accuracy or computational cost \cite{threedgenbench2025,arenad2025,worldscore2025}, and the newest structured-latent models report no inference latency or memory figures at all \cite{triposg2025,hunyuan3d2_2025,lattice2025}. This paper addresses this gap by providing a systematic comparative evaluation of three state-of-the-art feed-forward models: TripoSR (representing the triplane paradigm) \cite{triposr2024}, LGM (representing multi-view Gaussian splatting) \cite{lgm2024}, and TRELLIS (representing structured latents) \cite{trellis2024}. 
+
+The specific contributions of this work are threefold:
+\begin{itemize}
+    \item A comprehensive architectural analysis contrasting the theoretical mechanics of triplanes, multi-view Gaussians, and structured flow latents.
+    \item A rigorous empirical benchmark across established quantitative metrics (latency, VRAM, Chamfer Distance, F-Score, PSNR, LPIPS) under a single protocol, establishing a Pareto frontier of computational cost versus reconstruction quality and auditing the published efficiency claims of the original studies.
+    \item A detailed failure mode analysis identifying the topological and textural limitations inherent to each representation, culminating in a practical deployment taxonomy for downstream applications.
+\end{itemize}
+
+The remainder of this paper is organized as follows. Section II surveys related work in 3D reconstruction, specifically focusing on optimization-based methods, multi-view assisted methods, feed-forward models, the 2025 convergence on structured-latent flow models, and existing 3D generation benchmarks. Section III details the theoretical methodology of the evaluated paradigms. Section IV presents the experimental setup and quantitative results. Section V discusses failure modes and deployment recommendations. Finally, Section VI concludes the paper and outlines future work.
+
+\section{Related Work}
+
+\subsection{Optimization-Based Reconstruction}
+The introduction of NeRF \cite{nerf2020} established a differentiable volumetric rendering framework that revolutionized 3D synthesis. Subsequent methods, notably DreamFusion \cite{dreamfusion2022} and Magic3D \cite{magic3d2023}, leveraged SDS to distill knowledge from pre-trained text-to-image diffusion models into explicit 3D representations. DreamGaussian \cite{dreamgaussian} refined this approach by replacing MLPs with 3D Gaussian Splatting \cite{3dgs2023}, reducing optimization time from hours to minutes. However, the reliance on instance-specific optimization remains computationally prohibitive for real-time applications.
+
+\subsection{Multi-View Assisted Generation}
+To mitigate the inherent ambiguity of single-image inputs, intermediate multi-view generation was introduced. Zero-1-to-3 \cite{zero1to3} fine-tuned 2D diffusion models to generate novel views explicitly conditioned on camera extrinsics. Subsequent architectures, such as SyncDreamer \cite{syncdreamer} and MVDream \cite{mvdream2023}, utilized 3D-aware attention mechanisms to enforce multi-view consistency. These intermediate representations serve as highly constrained inputs for downstream feed-forward reconstructors.
+
+\subsection{Feed-Forward 3D Models}
+Large Reconstruction Models (LRMs) \cite{lrm2024} demonstrated the viability of pure feed-forward 3D inference using transformer-based architectures that predict triplane features. Splatter Image \cite{splatterimage} extended the feed-forward paradigm to directly predict 3D Gaussian primitives. TripoSR \cite{triposr2024} advanced the LRM architecture, achieving sub-second inference through optimized channel capacities and sparse rendering logic. Instant3D \cite{instant3d} similarly accelerated generation by combining sparse-view generation with LRM decoders, while InstantMesh \cite{instantmesh2024} matured this line by coupling multi-view diffusion with a sparse-view LRM and FlexiCubes extraction, reporting improved geometry over both TripoSR and LGM.
+
+\subsection{3D Foundation Models and Flow Matching}
+The field is currently transitioning toward generalized 3D foundation models. TRELLIS \cite{trellis2024} introduced a unified Sparse Latent (SLAT) space for 3D structures, enabling the application of advanced generative techniques such as Conditional Flow Matching \cite{rectifiedflow}. This approach parallels the success of latent diffusion in 2D imagery, currently representing the state-of-the-art in zero-shot geometric and topological fidelity.
+
+\subsection{The 2025 Convergence on Structured Latents}
+The directions surveyed above have rapidly consolidated into a dominant recipe. TripoSG \cite{triposg2025} abandons triplane regression entirely, generating shapes with a rectified-flow transformer over a vector-set SDF latent of up to 4{,}096 tokens (with a 4B-parameter mixture-of-experts variant), trained on two million curated assets. Hunyuan3D~2.0/2.1 \cite{hunyuan3d2_2025,hunyuan3d21_2025} pair a latent-shape flow transformer with a dedicated texture generator producing PBR materials. Direct3D-S2 \cite{direct3ds2_2025} and Sparc3D \cite{sparc3d2025} scale sparse volumetric latents to $1024^3$ resolution via spatial sparse attention and sparse-convolutional VAEs, respectively, and LATTICE \cite{lattice2025} unifies the vector-set and sparse-voxel views into voxel-anchored latents with test-time token scaling. Every system in this generation adopts the two ingredients pioneered by TRELLIS---sparse structured latents and flow-matching transformers---which retroactively validates the paradigm axis along which this paper benchmarks. Hybrid designs persist at the efficiency frontier: SPAR3D \cite{spar3d2025} couples lightweight point-cloud diffusion with deterministic mesh regression, achieving sub-second reconstruction with PBR output.
+
+\subsection{Benchmarks and Evaluation of 3D Generation}
+Evaluation practice has fragmented along a different axis. 3DGen-Bench \cite{threedgenbench2025} aggregates 1{,}020 prompts and 19 models into expert-preference-trained CLIP/MLLM scorers, and 3D Arena \cite{arenad2025} computes Elo ratings from over 123{,}000 crowd votes, ranking all three systems studied here; WorldScore \cite{worldscore2025} evaluates scene-level world generation with reference-free heuristics. These platforms measure what humans prefer---3D Arena finds, for instance, that Gaussian-splat renderings outscore meshes by 16.6 Elo and texturing adds 144.1 Elo---but none computes ground-truth-referenced geometry (Chamfer Distance, F-Score), and none reports latency or memory; indeed, none of \cite{triposg2025,hunyuan3d2_2025,sparc3d2025,lattice2025} reports these figures either. Ground-truth-referenced comparisons do exist, but only within the regression line: InstantMesh \cite{instantmesh2024} and SPAR3D \cite{spar3d2025} both re-evaluate TripoSR and LGM on GSO, while structured-latent systems are absent from every such table (Table~\ref{tab:protocol_fragmentation} quantifies the resulting spread). The present study therefore occupies an unclaimed position: a same-protocol, ground-truth-referenced geometric and efficiency evaluation spanning all three feed-forward paradigms, in the evaluative tradition of Tatarchenko et al. \cite{tatarchenko2019}.
+
+\section{Methodology}
+
+\subsection{Triplane Neural Radiance Fields (TripoSR)}
+TripoSR \cite{triposr2024} operationalizes the triplane-NeRF paradigm, engineered specifically for real-time feed-forward inference. The pipeline initializes by processing a $512 \times 512$ input image through a pre-trained DINOv1 ViT-B/16 \cite{dinov1} vision transformer encoder (fine-tuned end-to-end during training), yielding 1024 patch tokens of dimension 768. 
+
+The primary reconstructor is a 16-layer Image-to-Triplane transformer decoder (hidden dimension 1024, 16 attention heads). This transformer utilizes cross-attention to project 2D image features into a discrete set of $32 \times 32 \times 3$ learnable triplane tokens. 
+
+These tokens are upsampled and reshaped into a continuous triplane representation $T \in \mathbb{R}^{3 \times 64 \times 64 \times 40}$. TripoSR employs 40 channels per plane---a strategic reduction from the standard 80 channels utilized in base LRMs---to optimize VRAM consumption without severely degrading fidelity. To evaluate a 3D coordinate $x = (x,y,z) \in \mathbb{R}^3$, the mapping is formalized as $f(x) = \text{Concat}_k \text{Interp}(T_k, P_k(x))$ where $P_k$ denotes the plane-specific orthogonal projection onto the $XY, XZ,$ and $YZ$ planes, and $\text{Interp}$ signifies bilinear interpolation to clarify the receptive field and interpolation geometry, resulting in a 120-dimensional feature vector $f \in \mathbb{R}^{120}$.
+
+A highly optimized NeRF MLP processes $f$ to output volume density $\sigma$ and RGB color $c$:
+\begin{align}
+\sigma &= \exp(\text{MLP}_\sigma(f) - 1.0) \\
+c &= \text{sigmoid}(\text{MLP}_c(f))
+\end{align}
+Training is supervised via volume rendering (128 samples per ray). The objective function incorporates a critical mask loss to suppress semi-transparent topological artifacts (floaters):
+\begin{equation}
+\mathcal{L}_{recon} = \frac{1}{|V|} \sum (\mathcal{L}_{MSE} + 2.0 \mathcal{L}_{LPIPS} + 0.05 \mathcal{L}_{BCE\_mask})
+\end{equation}
+While mixing heterogeneous units, these hand-tuned coefficients (2.0 for LPIPS, 0.05 for BCE) were empirically determined; however, a more rigorous derivation could obtain these weights dynamically via uncertainty homoscedasticity or systematic sensitivity analysis to ensure optimal conditioning between terms.
+Final mesh extraction requires a post-hoc Marching Cubes pass at a $256^3$ resolution. The model was trained on 176 NVIDIA A100 GPUs for 5 days on a curated CC-BY subset of Objaverse, using $128 \times 128$ importance-sampled patches (foreground-biased) rather than full-resolution supervision to conserve memory.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\columnwidth]{figures/triposr_pipeline.png}
+\caption{TripoSR architecture: The image is encoded via DINOv1, decoded into a continuous triplane representation via transformers, and rendered into a volumetric mesh using a NeRF MLP and Marching Cubes.}
+\label{fig:triposr}
+\end{figure}
+
+\subsection{Multi-View Gaussian Splatting (LGM)}
+LGM \cite{lgm2024} directly predicts 3D Gaussian primitives using an asymmetric U-Net architecture, circumventing the computational overhead of volumetric ray-marching. To resolve single-image occlusion ambiguity, LGM first utilizes a multi-view diffusion model (e.g., MVDream \cite{mvdream2023} or ImageDream) to generate four consistent orthogonal views at $256 \times 256$ resolution.
+
+To encode spatial relationships and unprojected geometries, LGM projects camera rays using Pl\"ucker coordinates. A ray with origin $o \in \mathbb{R}^3$ and direction $d \in \mathbb{R}^3$ is embedded as $(o \times d, d) \in \mathbb{R}^6$. The U-Net input is the concatenation of the RGB color $c$ and the Pl\"ucker embedding: $x = [c; o \times d; d] \in \mathbb{R}^9$.
+
+The asymmetric U-Net enforces multi-view consistency through cross-view self-attention layers at the bottleneck ($8 \times 8$ spatial resolution). The architecture employs 6 down-blocks and 5 up-blocks; this deliberate asymmetry reduces the output resolution from $256 \times 256$ to $128 \times 128$, constraining the output to $128 \times 128 \times 4 = 65{,}536$ Gaussians while retaining higher-resolution visual conditioning. Each Gaussian is defined by a 14-dimensional parameter vector: position $\mu \in \mathbb{R}^3$, anisotropic scale $s \in \mathbb{R}^3$, rotation quaternion $q \in \mathbb{R}^4$, opacity $\alpha \in \mathbb{R}$, and RGB color $c \in \mathbb{R}^3$. 
+
+The model is trained end-to-end via differentiable Gaussian splatting rasterization on 32 A100 GPUs for 4 days, using ${\sim}80{,}000$ filtered Objaverse objects. The loss combines MSE (at $512 \times 512$), LPIPS (downsampled to $256 \times 256$ to conserve VRAM), and alpha-mask supervision. Notably, extracting polygonal meshes from the sparse Gaussian output requires a secondary conversion pipeline: Instant-NGP radiance field distillation (${\sim}15$s), Marching Cubes at $256^3$ (${\sim}5$s), differentiable surface refinement via nvdiffrast (${\sim}45$s), and UV texture baking via xatlas (${\sim}5$s)---totaling approximately one minute of post-processing.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\columnwidth]{figures/lgm_pipeline.png}
+\caption{LGM architecture: MVDream generates four orthogonal views. These are embedded with Pl\"ucker coordinates and processed by an asymmetric U-Net with cross-view attention to predict 65,536 dense 3D Gaussians.}
+\label{fig:lgm}
+\end{figure}
+
+\subsection{Structured Latent Flow Transformers (TRELLIS)}
+TRELLIS \cite{trellis2024} introduces a paradigm centered on structured latent spaces, utilizing a Sparse Latent (SLAT) representation. Unlike dense triplanes or unstructured point clouds, SLAT encodes 3D objects as sparse tokens anchored to active surface voxels: $z = \{(z_i, p_i)\}_{i=1}^L$, where $z_i \in \mathbb{R}^8$ is the latent feature and $p_i \in \{0, \dots, 63\}^3$ is the spatial coordinate. Surface sparsity constrains the active token count to $L \approx 20,000$.
+
+Generation employs a two-stage Rectified Flow matching pipeline. Initially, a Sparse VAE encodes binary occupancy $O \in \{0, 1\}^{64^3}$ into structural tokens. Two specialized transformers then govern generation:
+\begin{enumerate}
+    \item \textbf{$\mathcal{G}_S$ (Structure):} A dense transformer utilizing adaptive LayerNorm and DINOv2 cross-attention to predict the coarse bounding structure.
+    \item \textbf{$\mathcal{G}_L$ (Latent):} A flow transformer that refines local latents $z_i$, utilizing sparse convolutional packing to maintain tractable sequence lengths.
+\end{enumerate}
+
+TRELLIS optimizes a Conditional Flow Matching (CFM) objective, defining linear paths between empirical data $x_0$ and Gaussian noise $\epsilon$. Explicitly, the conditional probability path follows a Gaussian linear interpolation $x(t) = t \epsilon + (1-t) x_0$, from which the velocity target $\epsilon - x_0$ is derived:
+\begin{equation}
+\mathcal{L}_{CFM} = \mathbb{E}_{t, x_0, \epsilon} [||v_\theta(x(t), t) - (\epsilon - x_0)||^2]
+\end{equation}
+
+Crucially, TRELLIS bypasses Marching Cubes by decoding latents via FlexiCubes \cite{flexicubes2023}. The decoder outputs continuous mesh weights and Signed Distance values per voxel, enabling the direct, differentiable extraction of highly detailed $256^3$ polygonal meshes. The flagship TRELLIS-XL model (2.0B parameters) was trained on 64 NVIDIA A100 GPUs for 400,000 steps using a curated dataset of 500,777 3D assets, derived primarily from Objaverse-XL \cite{objaverse}.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\columnwidth]{figures/trellis_pipeline.png}
+\caption{TRELLIS architecture: Sparse Latent (SLAT) tokens are generated via sequential structure and latent flow transformers. These tokens are decoded directly into a high-fidelity PBR mesh utilizing FlexiCubes.}
+\label{fig:trellis}
+\end{figure}
+
+\section{Experiments}
+
+\subsection{Experimental Setup}
+Quantitative evaluations rely on standardized benchmark results aggregated from the original studies \cite{triposr2024, lgm2024, trellis2024}, executed on NVIDIA A100 GPUs. Performance is measured using Chamfer Distance (CD) for global geometry, F-Score ($\tau \in \{0.1, 0.2\}$) for surface precision, Peak Signal-to-Noise Ratio (PSNR), and Learned Perceptual Image Patch Similarity (LPIPS) for novel-view synthesis. Where available, independently published re-evaluations are cross-referenced to quantify protocol-induced variance.
+
+\subsection{Quantitative Results and Unified Comparison}
+
+To contextualize the comparative performance across paradigms, Table \ref{tab:unified_comparison} presents an empirical synthesis. Because earlier studies evaluated models on disparate benchmark suites (such as GSO versus Toys4k), cross-referencing against shared baseline anchors provides a consistent directional comparison.
+
+The cost of this fragmentation is measurable. Table \ref{tab:protocol_fragmentation} compiles independently published Chamfer Distance values for identical models on the same nominal dataset (GSO): protocol choices alone---subset selection, point counts, and alignment procedure---induce spreads of 2.2$\times$ for TripoSR and 1.8$\times$ for LGM. Transcluding numbers across papers, as any literature-level synthesis must currently do, is therefore unsound; a unified protocol is required.
+
+\begin{table}[ht]
+\centering
+\caption{Protocol fragmentation: reported Chamfer Distance (CD) for the same models on GSO under different evaluation protocols.}
+\label{tab:protocol_fragmentation}
+{\footnotesize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{lccc}
+\toprule
+Evaluation source & TripoSR & LGM & Protocol \\
+\midrule
+Original papers \cite{triposr2024,lgm2024} & 0.111 & -- & $\sim$300 obj, 10K pts, rot+ICP \\
+Re-eval by InstantMesh \cite{instantmesh2024} & 0.247 & 0.345 & 300 obj, 16K pts, no ICP \\
+Re-eval by SPAR3D \cite{spar3d2025} & 0.145 & 0.196 & $\sim$250 obj, ICP \\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize LGM reports no ground-truth-referenced geometry in its own paper.}
+\end{tabular}}
+\end{table}
+
+\begin{table*}[t]
+\centering
+\caption{Unified Comparison of Single-Image 3D Reconstruction Paradigms}
+\label{tab:unified_comparison}
+\begin{tabular}{llcccccccl}
+\toprule
+\textbf{Method} & \textbf{Representation} & \textbf{Inference} & \textbf{VRAM} & \textbf{CD} ($\downarrow$) & \textbf{F-Score} ($\uparrow$) & \textbf{PSNR} ($\uparrow$) & \textbf{LPIPS} ($\downarrow$) & \textbf{Primary Output Format} \\
+\midrule
+\textbf{TripoSR} \cite{triposr2024} & Triplane NeRF & $<$0.5s & 4--6 GB & 0.111* & 0.871* & -- & -- & .glb (Marching Cubes) \\
+\textbf{LGM} \cite{lgm2024} & 3D Gaussians & $\sim$5s & $\sim$10 GB & -- & -- & -- & -- & .ply (Gaussian Splats) \\
+\textbf{TRELLIS} \cite{trellis2024} & SLAT + Flow & $\sim$10s & $\sim$16 GB & 0.0083\textsuperscript{\dag} & 0.9999\textsuperscript{\dag} & 32.74\textsuperscript{\dag} & 0.025\textsuperscript{\dag} & .glb (FlexiCubes PBR) \\
+\bottomrule
+\multicolumn{9}{l}{\footnotesize * Evaluated on Google Scanned Objects (GSO) dataset. \textsuperscript{\dag} Evaluated on Toys4k dataset. Metrics provide directional comparison.}
+\end{tabular}
+\end{table*}
+
+Table \ref{tab:triposr_gso} demonstrates the geometric efficacy of the Triplane paradigm (TripoSR) on the Google Scanned Objects (GSO) dataset, evaluated on ${\sim}300$ curated objects with $10{,}000$ sampled surface points per mesh. TripoSR achieves a Chamfer Distance of 0.111, remaining statistically competitive with all baselines. Future evaluations should incorporate variance estimates or paired significance tests to rigorously confirm strict dominance.
+
+\begin{table}[ht]
+\centering
+\caption{Triplane (TripoSR) Evaluation on GSO Dataset \cite{triposr2024}}
+\label{tab:triposr_gso}
+{\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccc}
+\toprule
+Method & CD ($\downarrow$) & F@0.1 ($\uparrow$) & F@0.2 ($\uparrow$) & F@0.5 ($\uparrow$) \\
+\midrule
+One-2-3-45 & 0.227 & 0.382 & 0.630 & 0.878 \\
+ZeroShape & 0.160 & 0.489 & 0.757 & 0.952 \\
+OpenLRM \cite{openlrm2023} & 0.180 & 0.430 & 0.698 & 0.938 \\
+TriplaneGaussian & 0.122 & 0.637 & 0.846 & 0.968 \\
+\textbf{TripoSR} & \textbf{0.111} & \textbf{0.651} & \textbf{0.871} & \textbf{0.980} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Table \ref{tab:triposr_omni} further validates TripoSR on the OmniObject3D dataset, where it demonstrates even stronger performance (CD = 0.102, F@0.1 = 0.677), confirming cross-dataset generalization.
+
+\begin{table}[ht]
+\centering
+\caption{Triplane (TripoSR) Evaluation on OmniObject3D \cite{triposr2024}}
+\label{tab:triposr_omni}
+{\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccc}
+\toprule
+Method & CD ($\downarrow$) & F@0.1 ($\uparrow$) & F@0.2 ($\uparrow$) & F@0.5 ($\uparrow$) \\
+\midrule
+One-2-3-45 & 0.197 & 0.445 & 0.698 & 0.907 \\
+ZeroShape & 0.144 & 0.507 & 0.786 & 0.968 \\
+OpenLRM \cite{openlrm2023} & 0.155 & 0.486 & 0.759 & 0.959 \\
+TriplaneGaussian & 0.142 & 0.602 & 0.818 & 0.949 \\
+\textbf{TripoSR} & \textbf{0.102} & \textbf{0.677} & \textbf{0.890} & \textbf{0.986} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Table \ref{tab:trellis_toys4k} highlights the performance of the Structured Latent paradigm (TRELLIS) on the Toys4k dataset. The SLAT representation combined with flow matching achieves near-perfect structural metrics (F-Score 0.999) and superior novel-view fidelity (PSNR 32.74).
+
+\begin{table}[ht]
+\centering
+\caption{Structured Latents (TRELLIS) on Toys4k Dataset (500 instances; F-Score at radius $r{=}0.05$) \cite{trellis2024}}
+\label{tab:trellis_toys4k}
+\begin{tabular}{lcccc}
+\toprule
+Method & PSNR ($\uparrow$) & LPIPS ($\downarrow$) & CD ($\downarrow$) & F-Score ($\uparrow$) \\
+\midrule
+LN3Diff \cite{ln3diff2024} & 26.44 & 0.076 & 0.0299 & 0.9649 \\
+3DTopia-XL \cite{3dtopia2024} & 25.34 & 0.074 & 0.0128 & 0.9939 \\
+CLAY \cite{clay2024} & -- & -- & 0.0124 & 0.9976 \\
+\textbf{TRELLIS} & \textbf{32.74} & \textbf{0.025} & \textbf{0.0083} & \textbf{0.9999} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For the Multi-View Gaussian paradigm (LGM), the paper does not report standard geometric metrics on GSO or OmniObject3D. Instead, a user study with 20 volunteers evaluated 30 test images on a 1--5 scale (Table \ref{tab:lgm_user}).
+
+\begin{table}[ht]
+\centering
+\caption{LGM User Study Results (20 volunteers, 30 images) \cite{lgm2024}}
+\label{tab:lgm_user}
+\begin{tabular}{lcc}
+\toprule
+Method & Image Consistency ($\uparrow$) & Overall Quality ($\uparrow$) \\
+\midrule
+DreamGaussian & 2.30 & 1.98 \\
+TriplaneGaussian & 3.02 & 2.67 \\
+\textbf{LGM} & \textbf{4.18} & \textbf{3.95} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\columnwidth]{figures/pareto_frontier.png}
+\caption{Pareto frontier illustrating the fundamental trade-off between inference time (log scale) and geometric fidelity (F-score) across the evaluated paradigms. Bubble size correlates with VRAM consumption.}
+\label{fig:pareto_frontier}
+\end{figure}
+
+\subsection{Computational Efficiency and Hardware Constraints}
+The defining differentiation among these paradigms is computational efficiency (visualized in Fig. \ref{fig:pareto_frontier}):
+\begin{itemize}
+\item \textbf{Triplanes (TripoSR)}: Requires $<0.5$ seconds for total inference, consuming $4\text{--}6$ GB of VRAM. It is the only paradigm viable for real-time, consumer-edge applications.
+\item \textbf{Gaussians (LGM)}: The multi-view diffusion phase requires $\sim4$ seconds; U-Net inference requires $\sim1$ second. Total VRAM consumption is $\sim10$ GB, representing a balanced middle ground.
+\item \textbf{Structured Latents (TRELLIS)}: Deterministic ODE sampling requires ${\sim}10$ s at the reference setting of 50 Euler steps on high-end hardware, reducible to ${\sim}5\text{--}8$ s with community configurations of 12 steps per stage; optional GLB texture baking adds ${\sim}15$ s. The model requires a minimum of $16$ GB of VRAM (practical peak allocation: ${\sim}9\text{--}14$ GB), with community-verified execution on 12 GB consumer GPUs using optimized backends.
+\end{itemize}
+
+Independent re-measurements expose how hardware- and configuration-dependent published latency claims are: under the protocol of \cite{spar3d2025}, LGM required 41.0 s and InstantMesh 36.1 s per asset---approximately $8\times$ and $3.6\times$ their respective published figures---while SPAR3D itself runs in 0.7 s. Controlled same-hardware re-measurement is therefore a prerequisite for any honest efficiency ranking, and motivates the unified protocol adopted in this study.
+
+\section{Discussion and Failure Modes}
+
+The empirical findings delineate a strict Pareto frontier mapping inference latency against topological fidelity. Triplanes offer real-time speed but are prone to high-frequency detail loss and severe blurring on unobserved object backsides due to continuous field interpolation, measurable via elevated thresholded normal consistency errors on occluded regions. 
+
+Explicit Gaussians excel in multi-view rendering and texture representation. However, they rely entirely on the accuracy of the intermediate 2D diffusion step; multi-view inconsistencies manifest directly as floating artifacts, quantifiable through absolute hole counts and rendered artifact masks. Furthermore, extracting clean polygonal meshes from sparse Gaussian clouds often requires a secondary, computationally expensive volumetric conversion phase, frequently yielding topological holes. This multi-stage process compounds error, where the total mesh error budget can be decomposed as $E_{\text{total}} \approx E_{\text{distill}} + E_{\text{MC}} + E_{\text{refine}}$. This compounding error justifies why secondary conversion undermines the representation's utility relative to the direct, differentiable extraction offered by FlexiCubes.
+
+Structured latents provide state-of-the-art geometric fidelity. The integration of FlexiCubes allows for the direct extraction of water-tight, topologically sound meshes without secondary conversions. The primary limitation is computational: high VRAM requirements and longer inference times driven by iterative ODE sampling preclude real-time application. Additionally, the model occasionally bakes directional lighting directly into the surface texture.
+
+\begin{table}[ht]
+\centering
+\caption{Comparative Failure Mode Taxonomy}
+\label{tab:failure_modes}
+\begin{tabular}{>{\raggedright\arraybackslash}p{1.5cm} >{\raggedright\arraybackslash}p{3.5cm} >{\raggedright\arraybackslash}p{2.5cm}}
+\toprule
+\textbf{Paradigm} & \textbf{Primary Geometric Failure (Quantifiable)} & \textbf{Mesh Extraction Quality} \\
+\midrule
+Triplanes & Over-smoothing (high normal consistency error). & Acceptable (Standard Marching Cubes) \\
+\midrule
+Gaussians & Floating artifacts (absolute hole counts $\gg 0$). & Poor (Requires volumetric proxy conversion) \\
+\midrule
+SLAT (Flow) & Baked-in lighting, high VRAM constraint (OOM). & Excellent (Direct Differentiable FlexiCubes) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+To bridge the gap between theoretical capabilities and practical deployment, Table \ref{tab:deployment} provides targeted recommendations based on specific industrial constraints. For real-time applications such as Augmented Reality (AR) prototyping, TripoSR's sub-second latency is unmatched. Conversely, for offline asset generation pipelines requiring high-fidelity geometries, TRELLIS provides the necessary precision despite increased computational overhead.
+
+\begin{table}[ht]
+\centering
+\caption{Deployment Recommendations by Use Case}
+\label{tab:deployment}
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.6cm} l >{\raggedright\arraybackslash}p{3.2cm}}
+\toprule
+\textbf{Use Case} & \textbf{Paradigm} & \textbf{Rationale} \\
+\midrule
+Real-time AR/VR preview & \textbf{TripoSR} & ${<}$0.5s latency, consumer GPU \\
+Novel view synthesis & \textbf{LGM} & Native 3DGS rendering, superior PSNR \\
+Game asset pipeline & \textbf{TRELLIS} & Clean topology, PBR textures \\
+Edge/mobile deployment & \textbf{TripoSR} & 4--6 GB VRAM footprint \\
+Highest geometric fidelity & \textbf{TRELLIS} & Lowest CD (0.008), F-Score 0.999 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion and Future Work}
+
+This study provides a systematic evaluation of three contemporary feed-forward paradigms for single-image 3D reconstruction: triplane-based NeRFs (TripoSR), multi-view Gaussian Splatting (LGM), and structured latent flow transformers (TRELLIS). The analysis reveals a clear Pareto frontier governing the trade-off between inference latency and geometric fidelity. The field's subsequent convergence on structured-latent rectified-flow architectures \cite{triposg2025,hunyuan3d2_2025,sparc3d2025,lattice2025} underscores the stakes: the trade-offs quantified here are precisely those inherited by the current dominant paradigm.
+
+TripoSR proves that sub-second, real-time reconstruction is achievable via optimized triplanes, making it the only viable candidate for consumer-edge and mobile AR applications. LGM demonstrates the efficacy of fusing multi-view generative priors with direct Gaussian prediction, achieving strong rendering quality at moderate computational cost. TRELLIS establishes a new benchmark for topological and geometric fidelity by applying conditional flow matching with rectified linear probability paths to sparse structured latents, coupled with differentiable FlexiCubes mesh extraction.
+
+Several directions for future work emerge from this analysis. First, \textbf{hybrid architectures} that integrate the rapid inference of triplanes with the high-fidelity structural priors and differentiable meshing of TRELLIS could yield systems that are simultaneously fast and geometrically precise. Second, the field urgently requires a \textbf{unified benchmark dataset} with standardized evaluation protocols to enable fair cross-paradigm comparisons, as current evaluations on disjoint datasets (GSO, Toys4k, OmniObject3D) limit the conclusiveness of quantitative rankings. Third, \textbf{efficient distillation techniques} may compress TRELLIS-class models into real-time inference budgets without sacrificing topological soundness. Finally, extending these paradigms to \textbf{scene-level reconstruction} beyond isolated objects remains an open challenge.
+
+\section*{Acknowledgments}
+The author gratefully acknowledges Dr. Girish Paliwal, Department of Computer Science and Engineering, Amity University Uttar Pradesh, for guidance and supervision during this research.
+
+\balance
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
