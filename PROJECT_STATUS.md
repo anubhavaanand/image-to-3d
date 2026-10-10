@@ -73,7 +73,7 @@ Cite-only (not tested): Hunyuan3D 2.0/2.1, Direct3D-S2, Sparc3D, LATTICE.
 ## 5. FILE MAP (workspace = `~/Desktop/reasearch papers/`)
 
 - `paper/main.tex`, `paper/references.bib`, `paper/main.pdf` — **authoritative paper** (compiles; IEEEtran.cls/.bst present)
-- `kaggle_kernel_tmp/kaggle_benchmark_fixed.ipynb` — fixed benchmark notebook (import into Kaggle or push via CLI)
+- `kaggle_push/kernel.ipynb` (workspace push dir) = `kaggle/kernel.ipynb` (in repo, commit 376e1a2+) — CANONICAL benchmark notebook; `kaggle_push_manual/kernel.ipynb` mirrors it for the user's interactive `image-to-3d-benchmark-manual` kernel
 - `gso_catalog.txt` — 1,046-object catalog; `handpicked.txt` ← user creates this
 - `build_picker.py` → `gso_picker/picker.html` + `thumbs/` + `manifest.json` — visual picker
 - `image-to-3d-benchmark/` — benchmark repo (origin: github.com/anubhavaanand/image-to-3d); `src/evaluation/benchmark_runner.py` = the protocol; note: repo's `paper/` subfolder is a STALE copy, workspace `paper/` is authoritative

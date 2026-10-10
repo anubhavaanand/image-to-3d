@@ -61,8 +61,10 @@ image-to-3d-benchmark/
 │   └── references.bib           ← Full BibTeX for LaTeX paper (NEW)
 │
 ├── notebooks/
-│   ├── kaggle_benchmark.ipynb   ← Full benchmark run on Kaggle GPU (NEW)
 │   └── colab_demo.ipynb         ← Quick TripoSR demo on Colab (NEW)
+│
+├── kaggle/
+│   └── kernel.ipynb             ← CANONICAL benchmark notebook (Kaggle GPU, all fixes)
 │
 └── src/
     ├── __init__.py
@@ -154,8 +156,8 @@ image-to-3d-benchmark/
 
 | Task | Platform | GPU | Notes |
 |---|---|---|---|
-| TripoSR benchmark | Kaggle | T4 (free) | `notebooks/kaggle_benchmark.ipynb` cells 7 |
-| LGM benchmark | Kaggle | T4 (free) | `notebooks/kaggle_benchmark.ipynb` cells 8 |
+| TripoSR benchmark | Kaggle | T4 (free) | `kaggle/kernel.ipynb` (TripoSR cell) |
+| LGM benchmark | Kaggle | T4 (free) | `kaggle/kernel.ipynb` (LGM cell) |
 | TRELLIS benchmark | Kaggle | P100 or A100 | Set Accelerator to P100 in notebook settings |
 | Quick demo | Google Colab | T4 (free) | `notebooks/colab_demo.ipynb` |
 | Production app | HF Spaces | T4 or A100 | Deploy `app.py` |
