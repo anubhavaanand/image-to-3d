@@ -1,0 +1,17 @@
+{
+  "id": "anubhavaanand/image-to-3d-benchmark",
+  "title": "image-to-3d-benchmark",
+  "code_file": "kernel.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "anubhavaanand/image-to-3d-code"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
