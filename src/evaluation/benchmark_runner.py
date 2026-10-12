@@ -11,6 +11,7 @@ from __future__ import annotations
 import gc
 import os
 import json
+import shutil
 import time
 import traceback
 from pathlib import Path
@@ -22,7 +23,7 @@ from PIL import Image
 import torch
 
 from ..engines.base import AbstractEngine
-from ..evaluation.chamfer_distance import compute_chamfer_distance
+from ..evaluation.chamfer_distance import compute_chamfer_distance, compute_chamfer_distance_symmetric
 from ..evaluation.f_score import compute_f_score
 from ..evaluation.psnr_lpips import compute_psnr, compute_lpips
 from ..preprocessing.background_removal import BackgroundRemover
@@ -175,19 +176,319 @@ def render_novel_view(mesh, azimuth_deg: float = 45.0, resolution: int = 256):
 
         az = np.radians(azimuth_deg)
         camera_pose = np.array([
-            [np.cos(az), 0, np.sin(az), 1.5 * np.sin(az)],
+            [np.cos(az), 0, np.sin(az), 2.0 * np.sin(az)],
             [0,          1, 0,          0                ],
-            [-np.sin(az),0, np.cos(az), 1.5 * np.cos(az)],
+            [-np.sin(az),0, np.cos(az), 2.0 * np.cos(az)],
             [0,          0, 0,          1                ],
         ])
         camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
         scene.add(camera, pose=camera_pose)
         scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=3.0))
 
-        renderer = pyrender.OffscreenRenderer(resolution, resolution)
-        color, _ = renderer.render(scene)
+        renderer = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
+        # SKIP_CULL_FACES: double-sided rendering without a material override
+        # (marching-cubes meshes often have inconsistent winding)
+        color, _ = renderer.render(scene, flags=pyrender.RenderFlags.SKIP_CULL_FACES)
         renderer.delete()
+        # 2x supersampling: MC meshes carry sub-pixel triangles at 256 px, which
+        # rasterize as a dot field; downscaling a 2x render gives a clean image
+        from PIL import Image as _PILImage
+        color = np.array(
+            _PILImage.fromarray(color).resize((resolution, resolution), _PILImage.LANCZOS)
+        )
         return color  # (H, W, 3) uint8
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Rotation search + ICP alignment (TripoSR evaluation protocol)
+# ---------------------------------------------------------------------------
+
+def align_mesh_to_gt(pred_mesh, gt_points, n_rotations: int = 12):
+    """
+    Align predicted mesh to GT using rotation search + ICP.
+    
+    TripoSR evaluation protocol: search over yaw rotations (0-360 deg in steps),
+    run ICP for each, pick best alignment by Chamfer distance.
+    
+    Args:
+        pred_mesh: Mesh3D (prediction)
+        gt_points: (N, 3) normalized GT point cloud
+        n_rotations: Number of yaw angles to search (default 12 = 30 deg steps)
+        
+    Returns:
+        aligned_mesh: Mesh3D with best alignment
+        best_cd: float, best Chamfer distance found
+    """
+    try:
+        import trimesh
+        from scipy.spatial import cKDTree
+        
+        # Convert to trimesh
+        tm = trimesh.Trimesh(
+            vertices=pred_mesh.vertices,
+            faces=pred_mesh.faces,
+            vertex_colors=pred_mesh.vertex_colors,
+            process=False,
+        )
+        
+        # Sample points from mesh
+        pred_pts, _ = trimesh.sample.sample_surface(tm, 10_000)
+        pred_pts = np.array(pred_pts, dtype=np.float32)
+        
+        # Normalize pred to unit sphere (same as GT)
+        center = (pred_pts.max(0) + pred_pts.min(0)) / 2
+        scale = np.linalg.norm(pred_pts - center, axis=1).max()
+        pred_pts_norm = (pred_pts - center) / (scale + 1e-8)
+        
+        best_cd = float('inf')
+        best_rotation = None
+        best_pts = None
+        
+        # Rotation search around yaw axis
+        for i in range(n_rotations):
+            angle = 2 * np.pi * i / n_rotations
+            rot_z = np.array([
+                [np.cos(angle), -np.sin(angle), 0],
+                [np.sin(angle),  np.cos(angle), 0],
+                [0,              0,             1]
+            ], dtype=np.float32)
+            
+            rotated_pts = pred_pts_norm @ rot_z.T
+            
+            # ICP refinement (1 iteration, simple closest-point)
+            tree_gt = cKDTree(gt_points)
+            _, idx = tree_gt.query(rotated_pts)
+            matched_gt = gt_points[idx]
+            
+            # Compute rigid transform (Kabsch algorithm)
+            centroid_pred = rotated_pts.mean(axis=0)
+            centroid_gt = matched_gt.mean(axis=0)
+            pred_centered = rotated_pts - centroid_pred
+            gt_centered = matched_gt - centroid_gt
+            
+            H = pred_centered.T @ gt_centered
+            U, _, Vt = np.linalg.svd(H)
+            R = Vt.T @ U.T
+            
+            # Ensure proper rotation (no reflection)
+            if np.linalg.det(R) < 0:
+                Vt[-1, :] *= -1
+                R = Vt.T @ U.T
+            
+            # Apply transform
+            aligned_pts = (rotated_pts - centroid_pred) @ R.T + centroid_gt
+            
+            # Chamfer distance
+            tree_gt = cKDTree(gt_points)
+            d1, _ = tree_gt.query(aligned_pts)
+            tree_pred = cKDTree(aligned_pts)
+            d2, _ = tree_pred.query(gt_points)
+            cd = np.mean(d1**2) + np.mean(d2**2)
+            
+            if cd < best_cd:
+                best_cd = cd
+                best_rotation = R
+                best_pts = aligned_pts
+        
+        # Apply best transformation to mesh
+        if best_rotation is not None:
+            # Reconstruct full transform
+            tm.vertices = (tm.vertices - center) @ best_rotation.T + centroid_gt
+            # Note: centroid_gt should be computed from matched points
+            # For simplicity, we use the GT centroid
+            gt_center = gt_points.mean(axis=0)
+            tm.vertices = (tm.vertices - center) @ best_rotation.T + gt_center
+        
+        return tm, best_cd
+        
+    except Exception:
+        return None, float('inf')
+
+
+def align_mesh_to_gt_simple(pred_mesh, gt_points, n_rotations: int = 12):
+    """
+    Simpler rotation search without ICP - just yaw rotation search.
+    Matches TripoSR paper's evaluation protocol.
+    
+    Returns (aligned_mesh, best_cd, aligned_points_normalized) where:
+    - aligned_mesh: mesh with best rotation applied (vertices in original scale)
+    - best_cd: symmetric mean-distance Chamfer distance (TripoSR convention)
+    - aligned_points_normalized: 10K points already normalized to unit sphere, 
+      so caller can skip re-normalization
+    """
+    try:
+        import trimesh
+        from scipy.spatial import cKDTree
+        
+        tm = trimesh.Trimesh(
+            vertices=pred_mesh.vertices,
+            faces=pred_mesh.faces,
+            vertex_colors=pred_mesh.vertex_colors,
+            process=False,
+        )
+        
+        pred_pts, _ = trimesh.sample.sample_surface(tm, 10_000)
+        pred_pts = np.array(pred_pts, dtype=np.float32)
+        
+        # Normalize once
+        center = (pred_pts.max(0) + pred_pts.min(0)) / 2
+        scale = np.linalg.norm(pred_pts - center, axis=1).max()
+        pred_pts_norm = (pred_pts - center) / (scale + 1e-8)
+        
+        best_cd = float('inf')
+        best_rot = None
+        best_pts = None
+        
+        for i in range(n_rotations):
+            angle = 2 * np.pi * i / n_rotations
+            rot_z = np.array([
+                [np.cos(angle), -np.sin(angle), 0],
+                [np.sin(angle),  np.cos(angle), 0],
+                [0,              0,             1]
+            ], dtype=np.float32)
+            
+            rotated = pred_pts_norm @ rot_z.T
+            
+            # Query ROTATED points (not unrotated!)
+            tree = cKDTree(gt_points)
+            d1, _ = tree.query(rotated)
+            tree_pred = cKDTree(rotated)
+            d2, _ = tree_pred.query(gt_points)
+            
+            # Symmetric mean-distance CD (TripoSR convention), NOT squared
+            cd = np.mean(d1) + np.mean(d2)
+            
+            if cd < best_cd:
+                best_cd = cd
+                best_rot = angle
+                best_pts = rotated
+        
+        # Apply best rotation to mesh
+        if best_rot is not None:
+            rot_z = np.array([
+                [np.cos(best_rot), -np.sin(best_rot), 0],
+                [np.sin(best_rot),  np.cos(best_rot), 0],
+                [0,                0,               1]
+            ], dtype=np.float32)
+            tm.vertices = (tm.vertices - center) @ rot_z.T + center
+        
+        return tm, best_cd, best_pts
+        
+    except Exception:
+        return None, float('inf'), None
+
+
+# ---------------------------------------------------------------------------
+# Texture baking: GSO meshes carry UV textures; trimesh's to_color() returns
+# flat gray for them, which made every input / GT render colorless.
+# ---------------------------------------------------------------------------
+
+def bake_texture_to_vertices(tm):
+    """Sample the mesh's UV texture into per-vertex colors.
+
+    Returns a ColorVisuals (kind='vertex') on success, else the original
+    visual untouched so callers can fall back to their previous behavior.
+    """
+    try:
+        import numpy as np
+        import trimesh
+        from PIL import Image as _PILImage
+
+        uv = getattr(tm.visual, "uv", None)
+        material = getattr(tm.visual, "material", None)
+        img = getattr(material, "image", None) if material is not None else None
+        if uv is None or img is None:
+            return tm.visual
+        if not isinstance(img, _PILImage.Image):
+            img = _PILImage.fromarray(np.array(img))
+        img = np.array(img.convert("RGB"))
+        h, w = img.shape[:2]
+        u = np.mod(np.asarray(uv[:, 0], dtype=np.float64), 1.0)
+        v = 1.0 - np.mod(np.asarray(uv[:, 1], dtype=np.float64), 1.0)
+        x = np.clip((u * (w - 1)).round().astype(int), 0, w - 1)
+        y = np.clip((v * (h - 1)).round().astype(int), 0, h - 1)
+        vcol = img[y, x].astype(np.float32) / 255.0
+        return trimesh.visual.ColorVisuals(tm, vertex_colors=vcol)
+    except Exception:
+        return tm.visual
+
+
+def vertex_colors_rgb(tm):
+    """Per-vertex RGB in [0,1] if the mesh has vertex colors, else None."""
+    import numpy as np
+    try:
+        if getattr(tm.visual, "kind", None) != "vertex":
+            return None
+        vc = np.asarray(tm.visual.vertex_colors)
+        if vc.ndim != 2 or vc.shape[0] != len(tm.vertices):
+            return None
+        return vc[:, :3].astype(np.float32) / 255.0
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Same-background rendering helper (for fair PSNR)
+# ---------------------------------------------------------------------------
+
+def render_novel_view_same_bg(mesh, azimuth_deg: float = 45.0, resolution: int = 256,
+                               background_color: tuple = (1.0, 1.0, 1.0)):
+    """
+    Render novel view with specified background color.
+    For fair PSNR, both prediction and GT should use the SAME background.
+    
+    Args:
+        mesh: Mesh3D
+        azimuth_deg: Camera azimuth angle
+        resolution: Output resolution
+        background_color: RGB tuple in [0,1] range (default white)
+        
+    Returns:
+        (H, W, 3) uint8 numpy array
+    """
+    try:
+        import trimesh
+        import pyrender
+        import numpy as np
+        
+        tm = trimesh.Trimesh(
+            vertices=mesh.vertices,
+            faces=mesh.faces,
+            vertex_colors=(
+                (mesh.vertex_colors * 255).astype(np.uint8)
+                if mesh.vertex_colors is not None else None
+            ),
+            process=False,
+        )
+        scene = pyrender.Scene()
+        scene.add(pyrender.Mesh.from_trimesh(tm))  # keep vertex colors - a custom material would strip them!
+        scene.bg_color = np.array([*background_color, 1.0])
+        
+        az = np.radians(azimuth_deg)
+        camera_pose = np.array([
+            [np.cos(az), 0, np.sin(az), 2.0 * np.sin(az)],
+            [0,          1, 0,          0                ],
+            [-np.sin(az), 0, np.cos(az), 2.0 * np.cos(az)],
+            [0,          0, 0,          1                ],
+        ])
+        camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
+        scene.add(camera, pose=camera_pose)
+        scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=3.0))
+        
+        renderer = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
+        # SKIP_CULL_FACES: double-sided rendering without a material override
+        # (marching-cubes meshes often have inconsistent winding)
+        color, _ = renderer.render(scene, flags=pyrender.RenderFlags.SKIP_CULL_FACES)
+        renderer.delete()
+        # 2x supersampling: MC meshes carry sub-pixel triangles at 256 px, which
+        # rasterize as a dot field; downscaling a 2x render gives a clean image
+        from PIL import Image as _PILImage
+        color = np.array(
+            _PILImage.fromarray(color).resize((resolution, resolution), _PILImage.LANCZOS)
+        )
+        return color
     except Exception:
         return None
 
@@ -238,6 +539,19 @@ class BenchmarkRunner:
         return load_gso_samples(self.dataset_path, num_samples=self.num_samples)
 
     # ------------------------------------------------------------------
+    def _flush_partial(self, engine_name: str) -> None:
+        """Checkpoint results every N objects so a mid-run crash never loses completed work."""
+        try:
+            rows = [r for r in self.results if r.get("engine") == engine_name]
+            if not rows:
+                return
+            tmp = self.output_dir / f".partial_{engine_name}.json"
+            tmp.write_text(json.dumps(rows, indent=1, default=str))
+            os.replace(tmp, self.output_dir / f"partial_{engine_name}.json")
+            print(f"  [checkpoint] {engine_name}: {len(rows)} objects saved")
+        except Exception as _e:
+            print(f"  [checkpoint] failed (non-fatal): {_e}")
+
     def run(self) -> None:
         """Run all engines over all samples. Results accumulated in self.results."""
         samples = self.load_dataset()
@@ -265,20 +579,53 @@ class BenchmarkRunner:
                         image = white
 
                     # ---- inference ------------------------------------
+                    # Peak VRAM: reset stats right before predict so
+                    # max_memory_allocated covers this object's inference
+                    # (steady-state after the first object = model weights
+                    # included — the honest deployment number).
+                    if torch.cuda.is_available():
+                        torch.cuda.reset_peak_memory_stats()
                     t0 = time.perf_counter()
                     result = engine.predict(image)
                     latency = time.perf_counter() - t0
+                    vram_peak_gb = (
+                        round(torch.cuda.max_memory_allocated() / 1e9, 2)
+                        if torch.cuda.is_available() else None
+                    )
 
                     # ---- geometry metrics (requires mesh) -------------
                     geo_metrics: Dict[str, Any] = {}
                     pred_pts = mesh_to_pointcloud(result.mesh)
                     if pred_pts is not None:
                         gt_pts = sample["gt_points"]
-                        geo_metrics["chamfer_distance"] = float(
-                            compute_chamfer_distance(pred_pts, gt_pts)
-                        )
-                        fs = compute_f_score(pred_pts, gt_pts, thresholds=[0.1, 0.2, 0.5])
-                        geo_metrics.update(fs)
+                        
+                        # For TripoSR: apply rotation search alignment (TripoSR protocol)
+                        if engine_name == "TripoSR" and result.mesh is not None:
+                            # Use rotation search alignment (TripoSR paper protocol)
+                            # Returns (aligned_mesh, best_cd, aligned_points_normalized)
+                            aligned_mesh, best_cd, aligned_pts_norm = align_mesh_to_gt_simple(
+                                result.mesh, gt_pts, n_rotations=12
+                            )
+                            if aligned_mesh is not None and best_cd != float('inf') and aligned_pts_norm is not None:
+                                # Use symmetric mean-distance CD (TripoSR convention)
+                                geo_metrics["chamfer_distance"] = float(best_cd)
+                                # Use pre-normalized aligned points for F-score (avoids triple normalization)
+                                fs = compute_f_score(aligned_pts_norm, gt_pts, thresholds=[0.1, 0.2, 0.5])
+                                geo_metrics.update(fs)
+                            else:
+                                # Fallback to symmetric CD without alignment
+                                geo_metrics["chamfer_distance"] = float(
+                                    compute_chamfer_distance_symmetric(pred_pts, gt_pts)
+                                )
+                                fs = compute_f_score(pred_pts, gt_pts, thresholds=[0.1, 0.2, 0.5])
+                                geo_metrics.update(fs)
+                        else:
+                            # Other engines: use symmetric CD convention (mean-distance)
+                            geo_metrics["chamfer_distance"] = float(
+                                compute_chamfer_distance_symmetric(pred_pts, gt_pts)
+                            )
+                            fs = compute_f_score(pred_pts, gt_pts, thresholds=[0.1, 0.2, 0.5])
+                            geo_metrics.update(fs)
                     else:
                         geo_metrics = {
                             "chamfer_distance": float("nan"),
@@ -289,23 +636,56 @@ class BenchmarkRunner:
 
                     # ---- rendering metrics (PSNR / LPIPS) ------------
                     render_metrics: Dict[str, Any] = {}
+                    pred_render_to_save = None
                     if self.compute_render_metrics:
                         if result.mesh is not None:
                             try:
-                                pred_render = render_novel_view(result.mesh, azimuth_deg=45)
+                                # Render both prediction and GT with SAME background (white) for fair PSNR
+                                pred_render = render_novel_view_same_bg(
+                                    result.mesh, azimuth_deg=45, background_color=(1.0, 1.0, 1.0)
+                                )
                                 if pred_render is not None:
+                                    pred_render_to_save = pred_render
                                     gt_render_path = (
                                         Path(sample["image_path"]).parent / "001.png"
                                     )
                                     if gt_render_path.exists():
-                                        gt_render = np.array(
-                                            Image.open(gt_render_path).convert("RGB")
-                                                  .resize((256, 256))
+                                        # Render GT with same white background for fair comparison
+                                        # Load GT mesh and render with white background
+                                        gt_mesh_path = (
+                                            Path(sample["image_path"]).parent.parent / "meshes" / "model.obj"
                                         )
+                                        gt_render = None
+                                        if gt_mesh_path.exists():
+                                            import trimesh
+                                            gt_mesh = trimesh.load(str(gt_mesh_path), force="mesh")
+                                            # Bake UV texture to vertex colors (to_color()
+                                            # returns flat gray for GSO's textured meshes)
+                                            gt_mesh.visual = bake_texture_to_vertices(gt_mesh)
+                                            # Normalize GT mesh same as in load_gso_samples
+                                            pts = np.array(gt_mesh.vertices, dtype=np.float32)
+                                            c = (pts.max(0) + pts.min(0)) / 2
+                                            s = np.linalg.norm(pts - c, axis=1).max()
+                                            gt_mesh.apply_translation(-c)
+                                            gt_mesh.apply_scale(1.0 / (s + 1e-8))
+                                            gt_render = render_novel_view_same_bg(
+                                                type('obj', (object,), {
+                                                    'vertices': gt_mesh.vertices,
+                                                    'faces': gt_mesh.faces,
+                                                    'vertex_colors': vertex_colors_rgb(gt_mesh)
+                                                }), azimuth_deg=45, background_color=(1.0, 1.0, 1.0)
+                                            )
+                                        if gt_render is None:
+                                            # Fallback: use existing GT render image (but note it has black bg)
+                                            gt_render = np.array(
+                                                Image.open(gt_render_path).convert("RGB")
+                                                      .resize((256, 256))
+                                            )
                                         render_metrics["psnr"] = float(
                                             compute_psnr(pred_render, gt_render)
                                         )
                                         def to_lpips_tensor(img_np):
+                                            img_np = np.ascontiguousarray(img_np)  # pyrender returns negative strides - torch refuses them
                                             t = torch.from_numpy(img_np).float() / 127.5 - 1.0
                                             return t.permute(2, 0, 1).unsqueeze(0)
                                         render_metrics["lpips"] = float(
@@ -314,26 +694,47 @@ class BenchmarkRunner:
                                                 to_lpips_tensor(gt_render),
                                             )
                                         )
-                            except Exception:
-                                pass
+                            except Exception as _rm_err:
+                                print(f"  [render] metrics failed (non-fatal): {_rm_err}")
                         elif result.gaussians is not None:
                             render_metrics = {
                                 "psnr": float("nan"),
                                 "lpips": float("nan"),
                             }
 
+                    # ---- qualitative assets (never crash a metrics run) ----
+                    # input.png + gt_novel.png are shared by all engines;
+                    # {engine}_novel.png is this engine's novel-view render.
+                    try:
+                        qual_dir = self.output_dir / "qualitative" / sample_id
+                        qual_dir.mkdir(parents=True, exist_ok=True)
+                        input_src = Path(sample["image_path"])
+                        if not (qual_dir / "input.png").exists() and input_src.exists():
+                            shutil.copy(input_src, qual_dir / "input.png")
+                        gt_novel_src = input_src.parent / "001.png"
+                        if not (qual_dir / "gt_novel.png").exists() and gt_novel_src.exists():
+                            shutil.copy(gt_novel_src, qual_dir / "gt_novel.png")
+                        if pred_render_to_save is not None:
+                            Image.fromarray(pred_render_to_save).save(
+                                qual_dir / f"{engine_name}_novel.png"
+                            )
+                    except Exception as _qual_exc:
+                        print(f"  [qualitative] save failed: {_qual_exc}")
+
                     record = {
                         "engine": engine_name,
                         "sample_id": sample_id,
                         "latency_s": round(latency, 4),
+                        "vram_peak_gb": vram_peak_gb,
                         **geo_metrics,
                         **render_metrics,
                         "metadata": result.metadata or {},
                     }
                     self.results.append(record)
+                    _vram_str = f"  VRAM={vram_peak_gb:.2f}GB" if vram_peak_gb else ""
                     print(f"CD={geo_metrics.get('chamfer_distance', 'n/a'):.4f}  "
                           f"F@0.1={geo_metrics.get('f_score_0.1', 'n/a'):.3f}  "
-                          f"t={latency:.2f}s")
+                          f"t={latency:.2f}s{_vram_str}")
 
                 except Exception as exc:
                     print(f"FAILED: {exc}")
@@ -343,6 +744,11 @@ class BenchmarkRunner:
                         "sample_id": sample_id,
                         "error": str(exc),
                     })
+
+                # checkpoint every 10 objects (crash insurance for the 100-object run)
+                _done = sum(1 for r in self.results if r.get("engine") == engine_name)
+                if _done % 10 == 0:
+                    self._flush_partial(engine_name)
 
             gc.collect()
             torch.cuda.empty_cache()
@@ -354,12 +760,21 @@ class BenchmarkRunner:
     def get_summary_df(self) -> pd.DataFrame:
         """Per-engine mean ± std of all numeric metrics."""
         df = self.get_results_df()
+        if df.empty:
+            print("[BenchmarkRunner] No results to summarize.")
+            return pd.DataFrame()
         numeric_cols = [
             "latency_s", "chamfer_distance",
             "f_score_0.1", "f_score_0.2", "f_score_0.5",
             "psnr", "lpips",
         ]
         existing = [c for c in numeric_cols if c in df.columns]
+        if not existing:
+            print(f"[BenchmarkRunner] No numeric metrics in results. Columns: {list(df.columns)}")
+            if "error" in df.columns:
+                for _, row in df.iterrows():
+                    print(f"  ERROR [{row.get('engine','?')} / {row.get('sample_id','?')}]: {str(row['error'])[:200]}")
+            return pd.DataFrame()
         return (
             df.groupby("engine")[existing]
               .agg(["mean", "std"])

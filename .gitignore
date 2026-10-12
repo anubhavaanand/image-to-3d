@@ -21,6 +21,7 @@ paper/missfont.log
 # OS
 .DS_Store
 Thumbs.db
+.directory
 
 # IDE
 .vscode/

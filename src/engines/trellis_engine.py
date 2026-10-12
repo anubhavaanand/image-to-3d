@@ -27,7 +27,7 @@ from .base import AbstractEngine, ReconstructionResult, Mesh3D, GaussianCloud
 
 
 os.environ.setdefault("SPCONV_ALGO", "native")
-os.environ.setdefault("ATTN_BACKEND", "flash-attn")
+os.environ.setdefault("ATTN_BACKEND", "xformers")
 
 OutputFormat = Literal["mesh", "gaussian", "radiance_field"]
 
@@ -66,17 +66,26 @@ class TrellisEngine(AbstractEngine):
         """Download TRELLIS-image-large from HF and move to device."""
         try:
             from trellis.pipelines import TrellisImageTo3DPipeline
+            from huggingface_hub import snapshot_download
 
-            print("[TRELLIS] Loading TrellisImageTo3DPipeline …")
-            self.pipeline = TrellisImageTo3DPipeline.from_pretrained(
-                "JeffreyXiang/TRELLIS-image-large"
-            )
+            # Load from a LOCAL snapshot: Pipeline.from_pretrained resolves each model
+            # via f"{path}/{name}" and only falls back to hf_hub on failure - and that
+            # fallback masks the real error behind a bogus 404 (repo_id="ckpts/...").
+            # A local dir makes every model resolve as a local file, deterministically.
+            print("[TRELLIS] Fetching microsoft/TRELLIS-image-large snapshot …")
+            local_dir = snapshot_download("microsoft/TRELLIS-image-large")
+            print(f"[TRELLIS] Loading pipeline from local snapshot: {local_dir}")
+            self.pipeline = TrellisImageTo3DPipeline.from_pretrained(local_dir)
             self.pipeline = self.pipeline.to(self.device)
             print("[TRELLIS] Pipeline loaded.")
-        except ImportError:
+        except ImportError as e:
+            # Don't mask the real import error with HF_TOKEN blame
+            # The real cause is typically missing: spconv, nvdiffrast, FlexiCubes, diffoctreerast, utils3d
             raise ImportError(
-                "TRELLIS is not installed. "
-                "Run: pip install git+https://github.com/microsoft/TRELLIS.git"
+                f"TRELLIS import failed: {e}. "
+                "Missing dependencies: spconv-cu126 (py3.13-compatible wheel), nvdiffrast, xformers, "
+                "FlexiCubes (git submodule), diffoctreerast (pip), utils3d (pinned commit). "
+                "See notebook cell 8 for complete install sequence."
             )
 
     def predict(self, image: Image.Image) -> ReconstructionResult:
@@ -162,7 +171,7 @@ class TrellisEngine(AbstractEngine):
         return {
             "name": "TRELLIS",
             "paper": "arXiv:2412.01506",
-            "hf_repo": "JeffreyXiang/TRELLIS-image-large",
+            "hf_repo": "microsoft/TRELLIS-image-large",
             "latency_approx": "~10s (A100, 12 ODE steps)",
             "vram_approx": "~16–24 GB (fp16)",
             "output_formats": ["mesh (FlexiCubes @ 256³)", "gaussian (SLAT)", "radiance_field"],
