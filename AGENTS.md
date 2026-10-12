@@ -28,7 +28,7 @@ of Feed-Forward Paradigms for Single-Image 3D Reconstruction*
 
 **Core claim:** The first unified, same-protocol benchmark comparing TripoSR,
 LGM, and TRELLIS on the **same dataset (GSO, 100 objects)** with the **same
-metrics (CD, F-Score@{0.1,0.2,0.5}, PSNR, LPIPS, latency)**.
+metrics (CD, F-Score@{0.1,0.2,0.5}, PSNR, LPIPS, latency, peak VRAM)**.
 
 **Paper files (in parent directory):**
 - `../Final_Paper_LaTeX.tex` — IEEE-formatted LaTeX source
@@ -73,12 +73,12 @@ image-to-3d-benchmark/
     ├── engines/
     │   ├── base.py              ← Mesh3D, GaussianCloud, ReconstructionResult, AbstractEngine
     │   ├── triposr_engine.py    ← REAL TripoSR inference (stabilityai/TripoSR) (UPDATED)
-    │   ├── trellis_engine.py    ← REAL TRELLIS inference (JeffreyXiang/TRELLIS-image-large) (UPDATED)
+    │   ├── trellis_engine.py    ← REAL TRELLIS inference (microsoft/TRELLIS-image-large) (UPDATED)
     │   └── lgm_engine.py        ← REAL LGM inference (ashawkey/LGM) (UPDATED)
     │
     ├── evaluation/
-    │   ├── benchmark_runner.py  ← REAL runner: GSO loader, uniform metrics, LaTeX export (UPDATED)
-    │   ├── chamfer_distance.py  ← Chamfer Distance via cKDTree (real, was already correct)
+    │   ├── benchmark_runner.py  ← REAL runner: GSO loader, uniform metrics, alignment (UPDATED)
+    │   ├── chamfer_distance.py  ← symmetric mean-distance + squared CD via cKDTree (UPDATED)
     │   ├── f_score.py           ← F-Score @ thresholds (real, was already correct)
     │   └── psnr_lpips.py        ← PSNR + LPIPS (real, was already correct)
     │
@@ -119,14 +119,18 @@ image-to-3d-benchmark/
 - **Key paper numbers (user study):** consistency=4.18/5, quality=3.95/5
 
 ### TRELLIS
-- **HF repo:** `JeffreyXiang/TRELLIS-image-large`
+- **HF repo:** `microsoft/TRELLIS-image-large` (was `JeffreyXiang/TRELLIS-image-large`)
 - **Install:** `pip install git+https://github.com/microsoft/TRELLIS.git` + spconv
 - **Import:** `from trellis.pipelines import TrellisImageTo3DPipeline`
 - **VRAM:** ~16–24 GB (fp16, image-large)
 - **Speed:** ~10s (12 ODE steps)
 - **Output:** FlexiCubes mesh OR 3D Gaussians OR Radiance Field
 - **Architecture:** DINOv2 → Sparse VAE → 2-stage rectified flow (G_S + G_L) → FlexiCubes
+- **Attention backend:** defaults to `xformers` (`os.environ.setdefault("ATTN_BACKEND", "xformers")`
+  in `trellis_engine.py`); flash-attn is NOT required — see `COMPILE.md` §3
 - **Key paper numbers (Toys4k):** CD=0.008, F=0.999, PSNR=32.74, LPIPS=0.025
+  (⚠ TRELLIS reports CD on a different convention/scale from this repo's symmetric
+  mean-distance — see §5 Metric protocol before comparing)
 - **Model sizes:** 342M (Basic) / 1.1B (Large) / 2B (XL)
 
 ---
@@ -141,14 +145,26 @@ image-to-3d-benchmark/
   data/gso/
       <object_id>/
           images/000.png     ← front view (RGBA)
-          images/001.png     ← ~45° novel view (used for PSNR/LPIPS GT)
+          images/001.png     ← ~45° novel view — written at ingest, NOT the evaluation GT
           meshes/model.obj   ← ground-truth mesh
   ```
-- **Metric protocol:**
+- **Metric protocol** (locked 2026-10-12 in `98f5937` — see rule 3 in §10):
   - Sample 10,000 points from each mesh surface
   - Normalise both GT and predicted point clouds to unit sphere centred at origin
-  - Compute CD, F-Score@{0.1, 0.2, 0.5} on normalised point clouds
-  - Render novel view at azimuth=45° for PSNR/LPIPS
+  - **CD is symmetric mean distance** (not mean-square). F-Score@{0.1, 0.2, 0.5} on the
+    same normalised point clouds
+  - **Alignment is engine-specific:** TripoSR gets its paper protocol — a 12-rotation
+    yaw search (30° step) then Kabsch ICP (`align_mesh_to_gt_simple`). LGM and TRELLIS
+    are scored unaligned, exactly as written
+  - **PSNR/LPIPS ground truth is a re-render, not `001.png`:** re-render the GT
+    `meshes/model.obj` with UV textures baked into vertex colours, azimuth 45°, white
+    background, at 2× resolution with LANCZOS downscale, `SKIP_CULL_FACES`. `001.png`
+    is still written and copied to `outputs/qualitative/{sample_id}/gt_novel.png`, but
+    only for qualitative comparison
+  - **Peak VRAM** per object recorded as `vram_peak_gb`, bracketed by
+    `torch.cuda.reset_peak_memory_stats()` / `torch.cuda.max_memory_allocated()`
+  - Results checkpointed to `partial_{engine}.json` every 10 objects so a resumed run
+    keeps its work; qualitative assets go to `outputs/qualitative/{sample_id}/`
 
 ---
 
@@ -187,8 +203,13 @@ image-to-3d-benchmark/
 - [x] `app.py` examples directory (`examples/`) is empty — added sample images
 - [x] `ply_exporter.py` writes only position data — extended to write full Gaussian attributes
       (scale, rotation, opacity, SH) in standard 3DGS PLY format
-- [ ] `BenchmarkRunner.run()` does not compute PSNR/LPIPS for LGM (no mesh output) —
-      either render Gaussians before evaluation or mark as N/A
+- [x] `BenchmarkRunner.run()` did not compute PSNR/LPIPS for LGM (no mesh output) —
+      LGM now emits a `Mesh3D` from `predict(extract_mesh=True)` via a 256³ density
+      grid, separable Gaussian smoothing and marching cubes
+      (`_gaussians_to_mesh` in `lgm_engine.py`), so LGM is scored like the other two.
+      ⚠ This **approximates** the LGM paper's Sec-3.5 Instant-NGP distillation — it is
+      not a reimplementation of their method, and that difference must be stated in
+      the paper wherever an LGM CD number appears.
 
 ### MINOR
 - [x] `server.py` initialises all three engines at startup (loads all models) — made lazy with get_engine()
@@ -238,13 +259,18 @@ BackgroundRemover (rembg birefnet-general)
         │              │                      │
         ├──────────────┴──────────────────────┘
         ▼
-  GLB/PLY Export  (trimesh / standard 3DGS PLY)
+    Meshes/export (trimesh / standard 3DGS PLY)
         │
-        ├── BenchmarkRunner: Chamfer + F-Score + PSNR + LPIPS
-        │   → unified_results.csv → unified_table.tex → paper
+        ├── BenchmarkRunner: CD + F-Score + PSNR + LPIPS + latency + peak VRAM
+        │   → save_results() JSON per engine
+        │   → partial_{engine}.json every 10 objects (resume-safe)
+        │   → outputs/qualitative/{sample_id}/ (renders + meshes for the paper)
         │
         └── app.py: Gradio UI → download for user
 ```
+
+The runner does **not** emit `unified_results.csv` or `unified_table.tex`; the paper
+tables are built by hand from the JSON results.
 
 ---
 
@@ -254,12 +280,23 @@ BackgroundRemover (rembg birefnet-general)
    If a model is not installed, raise `ImportError` with install instructions.
 2. **Preserve the `AbstractEngine` interface.** All engines must implement
    `load_model()`, `predict()`, `get_engine_info()`.
-3. **Metric protocol is fixed.** Do not change how CD/F-Score/PSNR/LPIPS
-   are computed — results must be reproducible and comparable across engines.
+3. **Metric protocol is fixed AND versioned.** Do not change how CD/F-Score/PSNR/
+   LPIPS are computed — results must be reproducible and comparable across engines.
+   The protocol was changed on **2026-10-12** (commit `98f5937`): CD moved from
+   mean-square to symmetric **mean** distance, the PSNR/LPIPS GT moved from the stored
+   `001.png` (black bg) to a white-bg re-render of `model.obj`, TripoSR gained
+   12-rotation + ICP alignment, and peak VRAM was added.
+   **Any result produced before that commit is invalid and must be re-run** — do not
+   mix pre- and post-`98f5937` numbers in one table. Literature numbers in this file
+   (TRELLIS CD=0.008, TripoSR GSO CD=0.111, SPAR3D's re-evals) use other conventions
+   and are not directly comparable to repo output; state the convention wherever a
+   number is compared.
 4. **Paper accuracy is paramount.** All numbers in `Final_Paper_LaTeX.tex` must
    match either (a) the source PDFs, or (b) the output of `benchmark_runner.py`.
 5. **GPU memory safety.** Always call `torch.cuda.empty_cache()` between engines
-   in the benchmark notebook.
+   in the benchmark notebook. In `BenchmarkRunner`, call
+   `torch.cuda.reset_peak_memory_stats()` immediately before each engine's `predict()`
+   so `vram_peak_gb` reflects one object, not accumulated allocations.
 6. **No breaking changes to `base.py`.** `Mesh3D`, `GaussianCloud`,
    `ReconstructionResult` are the shared data contract — all code depends on them.
 7. **File paths.** Use `pathlib.Path` everywhere, not string concatenation.

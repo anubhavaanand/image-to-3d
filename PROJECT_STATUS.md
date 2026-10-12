@@ -1,6 +1,6 @@
 # PROJECT STATUS & SESSION HANDOFF
 **IEEE Image-to-3D Benchmark Paper — Anubhav Anand (Amity University UP / CST-UP grant)**
-Last updated: 2026-10-07. Written so any new session (or collaborator) can resume without re-reading this conversation.
+Last updated: 2026-10-12. Written so any new session (or collaborator) can resume without re-reading this conversation.
 
 ---
 
@@ -27,7 +27,7 @@ Last updated: 2026-10-07. Written so any new session (or collaborator) can resum
 | `paper/main.tex` rewritten (Related Work: 2025 convergence + benchmarks subsections; protocol-fragmentation table; claims-audit paragraph; TRELLIS facts fixed: ~10 s, F 0.9999 @ r=0.05; abstract cleaned) | ✅ done |
 | `paper/references.bib` rebuilt (12 new entries incl. TripoSG=ICML'25, InstantMesh=ICLR'25, TRELLIS=CVPR'25, SPAR3D=2501.**04689**; ZeroShape=CVPR'24 etc.) | ✅ done |
 | Compile verified on user's machine | ✅ done — 7 pages, 34 refs resolved; one 5pt overfull table fixed; user recompiles once (`pdflatex main`) |
-| Benchmark notebook fixed | ✅ `kaggle_kernel_tmp/kaggle_benchmark_fixed.ipynb` (GPU hard-check, EGL rendering, xformers backend for TRELLIS, engine-isolated cells, GSO mirror ingest + handpicked.txt support + self-rendering) |
+| Benchmark notebook fixed | ✅ `kaggle/kernel.ipynb` (GPU hard-check, EGL rendering, xformers backend for TRELLIS, engine-isolated cells, GSO mirror ingest + handpicked.txt support + self-rendering). `kaggle_kernel_tmp/kaggle_benchmark_fixed.ipynb` was deleted during the Gemini session — `kaggle/kernel.ipynb` is now the canonical notebook |
 | GSO data source verified | ✅ HF mirror `suvadityamuk/google-scanned-objects-raw` (1,046 official per-object zips; meshes+textures, no renders → notebook self-renders) |
 | Object catalog for handpicking | ✅ `gso_catalog.txt` (workspace root) |
 | Visual picker (local HTML gallery → handpicked.txt) | ⏳ building in background (`build_picker.py` → `gso_picker/picker.html`; log: `picker_build.log`) |
@@ -42,12 +42,36 @@ TripoSR (~1–2 s/obj) · SPAR3D (~0.7–1 s, 10.5 GB) · LGM (~10–20 s) · In
 Full 100-object run ≈ 3–4 GPU-hours + ~40 min setup vs ~30 GPU-h/week free quota. Smoke test ≈ 25 min.
 Cite-only (not tested): Hunyuan3D 2.0/2.1, Direct3D-S2, Sparc3D, LATTICE.
 
-**Runner gaps to fix BEFORE the paper-grade run** (in `image-to-3d-benchmark/src/evaluation/benchmark_runner.py`):
-1. **Record peak VRAM** per object (`torch.cuda.max_memory_allocated`) — currently only latency+metrics; VRAM is a headline claim.
-2. **Rotation/ICP alignment** before CD/F-Score (TripoSR's protocol: brute-force rotation + ICP) — otherwise numbers inflated vs literature.
-3. **CD convention**: repo uses raw mean-squared CD; papers use 10K points ×100 scaling — pick ONE and state it in the paper.
-4. **LGM mesh conversion**: LGM outputs Gaussians → v1 gives latency only; implement their Sec-3.5 conversion (Instant-NGP distill → MC) for a subset, or benchmark splat-render metrics.
-5. GT novel-view vs prediction background mismatch (input white bg, evaluator renders black bg) — acceptable v1, document it.
+**Runner gaps — ALL CLOSED 2026-10-12 (commit `98f5937`).** This used to be a punch list
+titled "fix BEFORE the paper-grade run"; all five items are now implemented in
+`src/evaluation/benchmark_runner.py` (+ related in `chamfer_distance.py`, `lgm_engine.py`):
+1. **Peak VRAM** ✅ `vram_peak_gb` per object, bracketed by `torch.cuda.reset_peak_memory_stats()`
+   immediately before `predict()` and `torch.cuda.max_memory_allocated()` after.
+2. **Rotation/ICP alignment** ✅ `align_mesh_to_gt_simple(pred_mesh, gt_points, n_rotations=12)` —
+   12-rotation yaw search (30° step) + Kabsch ICP, applied **to TripoSR only** (TripoSR's own
+   protocol). LGM and TRELLIS are scored unaligned. That asymmetry is deliberate but must be
+   disclosed in the paper — do not "fix" it by aligning the others.
+3. **CD convention** ✅ **symmetric mean distance** on 10K unit-sphere-normalised points. The
+   alternative (×100 scaled) was considered and REJECTED. `compute_chamfer_distance(squared=True)`
+   still exists for callers wanting the old mean-square behaviour; the runner uses only
+   `compute_chamfer_distance_symmetric`.
+4. **LGM mesh conversion** ✅ `_gaussians_to_mesh()` — 256³ density grid, separable Gaussian
+   smoothing, marching cubes (torchmcubes, skimage.measure fallback). ⚠ This **approximates**
+   the LGM paper's Sec-3.5 Instant-NGP distillation; it is not a reimplementation, and LGM
+   numbers must be labelled as such in the paper.
+5. **GT/pred background mismatch** ✅ RESOLVED by inversion — the runner no longer serves the
+   GT. `render_novel_view_same_bg()` re-renders `meshes/model.obj` (UV textures baked into
+   vertex colours) at azimuth 45° on a **white** background, 2× supersampled with LANCZOS
+   downscale and `SKIP_CULL_FACES`.
+
+⚠ **Every benchmark number produced before `98f5937` is invalid** and must be re-run. Do not
+mix pre- and post-commit values in one table.
+The paper-rebuild step must now consume `partial_{engine}.json` (checkpoints every 10 objects)
+and `outputs/qualitative/{sample_id}/` (per-object renders + meshes) — **not** any
+`unified_results.csv`, which the runner never writes.
+**Run sizes, stated once:** notebook `NUM_SAMPLES = 10` (smoke) and 100 (paper grade).
+`BenchmarkRunner`'s and `BenchmarkConfig`'s `num_samples` default of 100 is only a default —
+the notebook overrides it, and `src/config.py`'s `BenchmarkConfig` is imported nowhere in `src/`.
 
 **Kaggle driving:** API key at `~/.kaggle/kaggle.json`; CLI at `paper/.venv/bin/kaggle`. Can push kernel / poll status / pull output from any session. User's Antigravity-CLI MCP config is an alternative, not required.
 
@@ -68,14 +92,32 @@ Cite-only (not tested): Hunyuan3D 2.0/2.1, Direct3D-S2, Sparc3D, LATTICE.
    - Explore: `gso_catalog.txt` (1,046 names) or official scans at research.google blog / app.gazebosim.org (old collection links 404 since the Fuel reorg).
    - Visual picker being generated: `gso_picker/picker.html` (checkbox gallery, downloads handpicked.txt directly).
 2. Deliver `handpicked.txt` (one object name per line): drag-drop into Kaggle notebook editor (Upload → File → lands at /kaggle/working/) OR bundle at CLI push.
-3. Notebook cell 4 reads it; else seeded random sample (seed 42). Downloads zips from the HF mirror, extracts meshes, renders 000.png (input, white bg, 512) + 001.png (GT novel view, black bg, 256) with the evaluator's own camera.
+3. Notebook cell 4 reads it; else seeded random sample (seed 42). Downloads zips from the HF mirror, extracts meshes, renders 000.png (input, white bg, 512) + 001.png (GT novel view, black bg, 256) with the evaluator's own camera. ⚠ `001.png` is written at ingest but is **no longer the PSNR/LPIPS ground truth** — the runner re-renders `meshes/model.obj` on white (see §3). `001.png` survives only as a qualitative reference, copied to `outputs/qualitative/{sample_id}/gt_novel.png`.
 
 ## 5. FILE MAP (workspace = `~/Desktop/reasearch papers/`)
 
 - `paper/main.tex`, `paper/references.bib`, `paper/main.pdf` — **authoritative paper** (compiles; IEEEtran.cls/.bst present)
 - `kaggle_push/kernel.ipynb` (workspace push dir) = `kaggle/kernel.ipynb` (in repo, commit 376e1a2+) — CANONICAL benchmark notebook; `kaggle_push_manual/kernel.ipynb` mirrors it for the user's interactive `image-to-3d-benchmark-manual` kernel
 - `gso_catalog.txt` — 1,046-object catalog; `handpicked.txt` ← user creates this
+  (fold the picked list into the kernel push, or drop it in `/kaggle/working` in the editor)
 - `build_picker.py` → `gso_picker/picker.html` + `thumbs/` + `manifest.json` — visual picker
+- `build_dataset_tarball.sh` (repo EXTERNAL, kept at workspace root on purpose) — builds
+  `kaggle_dataset_upload/image-to-3d-benchmark-code.tar.gz` → Kaggle dataset
+  `anubhavaanand/image-to-3d-code`. It hardcodes this machine's absolute paths and its
+  fragment-based exclusion whitelist (`.git`, `.venv`, `__pycache__`, `*.pyc`, `.directory`,
+  `.DS_Store`) is what keeps the `.git`-poisoned dataset from ever being rebuilt. Editing it
+  is a standing-rule change, not a refactor — leave it where it is.
+- `colab_stages/` (repo EXTERNAL) — `gen_stages.py` emits the 9-file stage tree from
+  `kaggle_push/kernel.ipynb` (notebook is the single source of truth; the generator lives
+  beside it, not inside the repo). `python3 gen_stages.py --check` exits 0 = stage tree in sync.
+  Also `run_all.py` for driving the stages in sequence.
+- `backups/2026-10-12-v53/` — the only copy of four otherwise one-of-a-kind files:
+  `kernel.ipynb.v52` (rollback point), `kernel.ipynb.bak` (invalid JSON, unrecoverable),
+  `handpicked.txt` (1-object smoke list `3D_Dollhouse_Sofa`), `plan-v53-rationale.md`
+  (why v53 pins TRELLIS `442aa1e1…` and diffoctreerast `b09c20b8…`).
+- Stale notebook homes, kept not deleted: `kaggle_push_v2/`, `kaggle_push_manual/`, `repo/`,
+  `kaggle_dataset_tmp_clean/`, `out/image-to-3d-benchmark/`. Verify against
+  `kaggle/kernel.ipynb` (md5 `aa1fdc4f…`) before reusing any of them.
 - `image-to-3d-benchmark/` — benchmark repo (origin: github.com/anubhavaanand/image-to-3d); `src/evaluation/benchmark_runner.py` = the protocol; note: repo's `paper/` subfolder is a STALE copy, workspace `paper/` is authoritative
 - `new papers/` — 11 PDFs (TripoSG 2502.06608, Hunyuan3D 2.0 2501.12202, Hunyuan3D 2.1 2506.15442, Direct3D-S2 2505.17412 = `document.pdf`, Sparc3D 2505.14521, LATTICE 2512.03052, SPAR3D **2501.04689**, InstantMesh 2404.07191, 3DGen-Bench 2503.21745, 3D Arena 2506.18787, WorldScore 2504.00983). Wrong physics PDF 2501.04777 deleted.
 - Root PDFs: TripoSR 2403.02151, LGM 2402.05054, TRELLIS 2412.01506
@@ -87,8 +129,17 @@ Cite-only (not tested): Hunyuan3D 2.0/2.1, Direct3D-S2, Sparc3D, LATTICE.
 1. Read this file + memory index (auto-loaded).
 2. If `handpicked.txt` exists → push the smoke run via kaggle CLI (notebook + file), 10 objects (`NUM_SAMPLES=10`), report results.
 3. If not → check `gso_picker/picker.html` exists, have user pick.
-4. After smoke passes: fix runner gaps §3.1–3.3, run full 100, pull JSONs, rebuild Tables + Pareto figure from real data, update paper (replace literature tables), recompile.
+4. After smoke passes: run full 100, pull the JSONs (`save_results()` output + `partial_*.json`), rebuild Tables + Pareto figure from real data, update paper (replace literature tables), recompile.
 5. Standing user triggers: "run the benchmark" = start Kaggle run; user reports AWS error = diagnose credit.
+
+## 6b. COMPATIBILITY WARNING (read before quoting any number)
+
+The repo locks **symmetric mean-distance CD** and the three source papers report CD on
+**other conventions** (TRELLIS CD=0.0083 on Toys4k; TripoSR GSO 0.111 with rot+ICP on 10K pts;
+SPAR3D's re-evals use ICP). Any cross-comparison — including the paper's
+`tab:protocol_fragmentation` — requires an explicit conversion, and the conversion itself is
+a claim that needs its own justification. Do not present repo numbers and literature numbers
+as directly comparable without saying which convention each uses.
 
 ## 7. KEY FACTS TO NEVER RE-DERIVE
 
