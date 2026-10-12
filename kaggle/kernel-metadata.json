@@ -1,5 +1,5 @@
 {
-  "id": "anubhavaanand/image-to-3d-benchmark",
+  "id": "anubhavanandd/image-to-3d-benchmark",
   "title": "image-to-3d-benchmark",
   "code_file": "kernel.ipynb",
   "language": "python",
@@ -9,7 +9,7 @@
   "enable_tpu": false,
   "enable_internet": true,
   "dataset_sources": [
-    "anubhavaanand/image-to-3d-code"
+    "anubhavanandd/image-to-3d-code"
   ],
   "competition_sources": [],
   "kernel_sources": [],
