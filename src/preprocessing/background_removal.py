@@ -3,7 +3,7 @@ from PIL import Image
 
 
 class BackgroundRemover:
-    def __init__(self, model_name: str = "birefnet-general"):
+    def __init__(self, model_name: str = "isnet-general-use"):
         self.model_name = model_name
         self.session = rembg.new_session(self.model_name)
 
