@@ -75,8 +75,11 @@ class TrellisEngine(AbstractEngine):
             print("[TRELLIS] Fetching microsoft/TRELLIS-image-large snapshot …")
             local_dir = snapshot_download("microsoft/TRELLIS-image-large")
             print(f"[TRELLIS] Loading pipeline from local snapshot: {local_dir}")
-            self.pipeline = TrellisImageTo3DPipeline.from_pretrained(local_dir)
-            self.pipeline = self.pipeline.to(self.device)
+            _pipeline = TrellisImageTo3DPipeline.from_pretrained(local_dir)
+            _moved = _pipeline.to(self.device)
+            # On some TRELLIS versions .to() returns None instead of self when a
+            # sub-module can't be moved; fall back to the original pipeline object
+            self.pipeline = _moved if _moved is not None else _pipeline
             print("[TRELLIS] Pipeline loaded.")
         except ImportError as e:
             # Don't mask the real import error with HF_TOKEN blame
