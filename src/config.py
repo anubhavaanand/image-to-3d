@@ -8,7 +8,7 @@ class EngineType(str, Enum):
     TRELLIS = "TRELLIS"
 
 class PreprocessingConfig(BaseModel):
-    background_removal_model: str = Field(default="birefnet-general")
+    background_removal_model: str = Field(default="isnet-general-use")
     target_size: Tuple[int, int] = Field(default=(512, 512))
 
 class EngineConfig(BaseModel):
