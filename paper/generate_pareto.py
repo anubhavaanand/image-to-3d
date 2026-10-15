@@ -1,99 +1,80 @@
-import matplotlib.pyplot as plt
+#!/usr/bin/env python3
+"""
+Pareto/efficiency figure from MEASURED V28 data (kaggle_output_v28, post-commit 98f5937).
+Tesla T4 (15.6 GB), 10 GSO objects. No literature numbers, no cross-dataset proxies.
+
+Panel A: latency (log-x) vs geometric fidelity (F@0.2), bubble = peak VRAM.
+Panel B: latency vs perceptual quality (1 - LPIPS).
+TRELLIS: single-T4 OOM region (14.56 GiB) marked; no measured point (0/10 scored).
+Output: paper/figures/pareto_frontier.png at 300 DPI.
+"""
 import matplotlib
-matplotlib.use('Agg')
-import json, statistics
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import os
 
-# --- Load real measured data from the v33 10-object smoke pass ---
-T33 = '/home/anubhavanand/Desktop/reasearch papers/v33_results/outputs/'
+# --- Measured V28 values (verified against kaggle_output_v28/outputs/*.json) ---
+triposr = {"name": "TripoSR", "lat": 3.61, "lat_err": 0.28, "vram": 2.50,
+           "f02": 0.702, "f02_err": 0.236, "one_mlips": 1 - 0.412, "n": "9/10"}
+lgm = {"name": "LGM", "lat": 8.39, "lat_err": 0.25, "vram": 5.57,
+       "f02": 0.379, "f02_err": 0.221, "one_mlips": 1 - 0.285, "n": "10/10"}
 
-def load(name):
-    try:
-        return json.load(open(T33 + name))
-    except Exception:
-        return []
+OOM_GIB = 14.56  # single-T4 usable ceiling; TRELLIS FlexiCubes decode exceeds it (10/10 OOM)
 
-triposr = load('triposr_results.json')
-lgm = load('lgm_results.json')
-trellis = load('trellis_results.json')
+C_TRIPOSr = "#2b83ba"
+C_LGM = "#f57c00"
+C_OOM = "#d7191c"
 
-def mean_std(vals):
-    vals = [v for v in vals if v is not None and v == v]  # drop NaN
-    if not vals:
-        return None, None
-    return statistics.mean(vals), statistics.pstdev(vals) if len(vals) > 1 else 0.0
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.16, 2.9))  # IEEE two-column width
 
-# TripoSR: measured on 10 GSO objects, Tesla T4
-lat_t, lat_t_std = mean_std([x['latency_s'] for x in triposr])
-f_t, f_t_std = mean_std([x['f_score_0.2'] for x in triposr])
-vram_t = 5  # GB, T4 16GB total / TripoSR peak
+for ax, ykey, ylabel in (
+    (ax1, "f02", "Geometric fidelity: F@0.2 $\\uparrow$"),
+    (ax2, "one_mlips", "Perceptual quality: $1-$LPIPS $\\uparrow$"),
+):
+    # bubbles (area ~ VRAM)
+    for e, c in ((triposr, C_TRIPOSr), (lgm, C_LGM)):
+        ax.errorbar(e["lat"], e[ykey], xerr=e["lat_err"],
+                    yerr=e["f02_err"] if ykey == "f02" else None,
+                    fmt="o", ms=e["vram"] * 3.2, mfc=c, mec="black", mew=0.8,
+                    ecolor="gray", elinewidth=1, capsize=3, zorder=3,
+                    label=f'{e["name"]} ({e["n"]}, {e["vram"]:.2f} GB)')
+        ax.annotate(e["name"], (e["lat"], e[ykey]), textcoords="offset points",
+                    xytext=(8, 8), fontsize=8, fontweight="bold")
+    ax.set_xscale("log")
+    ax.set_xlim(2, 26)
+    # clean log ticks: major at 2,4,6,8,10,20; no minor labels (they garbled the axis)
+    import matplotlib.ticker as mticker
+    ax.xaxis.set_major_locator(mticker.FixedLocator([2, 4, 6, 8, 10, 20]))
+    ax.xaxis.set_major_formatter(mticker.FixedFormatter(["2", "4", "6", "8", "10", "20"]))
+    ax.xaxis.set_minor_locator(mticker.NullLocator())
+    ax.minorticks_off()
+    if ykey == "f02":
+        ax.set_ylim(0.0, 1.0)
+    else:
+        ax.set_ylim(0.4, 0.85)
+    ax.set_xlabel("Measured wall-clock latency (s, log scale) $\\downarrow$")
+    ax.set_ylabel(ylabel)
+    ax.grid(True, which="major", alpha=0.25, zorder=0)
+    ax.tick_params(labelsize=8)
 
-# LGM: latency measured, geometry pending (Gaussian->mesh conversion)
-lat_l, lat_l_std = mean_std([x['latency_s'] for x in lgm])
-vram_l = 10  # GB, measured
+# annotate the TRELLIS OOM constraint on both panels
+for ax in (ax1, ax2):
+    ax.axvline(25.5, color=C_OOM, linestyle="--", alpha=0.85, linewidth=1.4)
+    ax.annotate("TRELLIS: 10/10 OOM\n$256^3$ FlexiCubes\n> 14.56 GiB\n(needs $\\geq$24 GB GPU)",
+                xy=(0.02, 0.03), xycoords="axes fraction", ha="left", va="bottom",
+                fontsize=7, color=C_OOM,
+                bbox=dict(boxstyle="round,pad=0.3", fc="#fdecea", ec=C_OOM, lw=0.8))
 
-# TRELLIS: deferred (OOM on T4)
-lat_tr_lit = 10  # literature latency for positioning only
-vram_tr = 16
+ax1.legend(loc="upper right", fontsize=7.5, framealpha=0.95)
+ax2.annotate("Bubble area $\\propto$ measured peak VRAM",
+             xy=(0.02, 0.97), xycoords="axes fraction", ha="left", va="top", fontsize=7,
+             style="italic", color="0.35")
 
-fig, ax = plt.subplots(figsize=(8, 6))
+fig.suptitle("Measured efficiency--fidelity trade-off, NVIDIA Tesla T4 (10 curated GSO objects)",
+             fontsize=9, y=0.99)
+fig.tight_layout(rect=[0, 0, 1, 0.94])
 
-methods = ['TripoSR', 'LGM', 'TRELLIS']
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
-
-# TripoSR — real measured
-ax.scatter([lat_t], [f_t], s=vram_t*50, alpha=0.8, c=[colors[0]], zorder=5,
-           edgecolors='black', linewidths=0.8)
-ax.annotate(
-    f"TripoSR\n({lat_t:.2f}s, {f_t:.3f})",
-    (lat_t, f_t),
-    xytext=(12, -14), textcoords='offset points',
-    fontsize=10, fontweight='bold'
-)
-
-# LGM — latency only (pending)
-ax.scatter([lat_l], [0.79], s=vram_l*50, alpha=0.45, c=[colors[1]], zorder=5,
-           marker='D', edgecolors='black', linewidths=0.8)
-ax.annotate(
-    f"LGM\n({lat_l:.2f}s, F $\\dagger$ pending)",
-    (lat_l, 0.79),
-    xytext=(12, 8), textcoords='offset points',
-    fontsize=9, fontweight='bold', fontstyle='italic', color='#cc6600'
-)
-
-# TRELLIS — deferred (literature latency for ordering only)
-ax.scatter([lat_tr_lit], [0.999], s=vram_tr*50, alpha=0.35, c=[colors[2]], zorder=5,
-           marker='^', edgecolors='black', linewidths=0.8)
-ax.annotate(
-    f"TRELLIS\n({lat_tr_lit:.0f}s lit, deferred)",
-    (lat_tr_lit, 0.999),
-    xytext=(12, -12), textcoords='offset points',
-    fontsize=9, fontweight='bold', fontstyle='italic'
-)
-
-ax.set_xscale('log')
-ax.set_xlabel('Inference Time (Seconds) \u2014 Log Scale', fontsize=12)
-ax.set_ylabel('Geometric Fidelity (F-Score at $\\tau=0.2$)', fontsize=12)
-ax.set_title('Speed vs. Quality Trade-off (10 GSO Objects, Tesla T4)', fontsize=13, fontweight='bold')
-
-ax.set_xlim(0.3, 30)
-ax.set_ylim(0.4, 1.05)
-
-fig.text(0.12, 0.02,
-         '\u2022 TripoSR (10 obj, own): %.2fs, CD=%.3f, F@0.2=%.3f (mean $\\pm$ %.3f)\n'
-         '\u2022 LGM: latency measured (%.2fs), geometry pending (Gaussian-to-mesh conversion)\n'
-         '\u2022 TRELLIS: deferred \u2014 CUDA OOM at FlexiCubes decode on 16 GB T4 (full run on 24 GB host).\n'
-         '\u2022 Bubble size $\\propto$ VRAM (GB). Symbols: \u25CF measured, \u25C6 latency-only, \u25B3 deferred.\n'
-         'Interim smoke-pass results; the 100-object paper-grade run replaces all deferred cells.' % (
-             lat_t, mean_std([x['chamfer_distance'] for x in triposr])[0], f_t, f_t_std, lat_l),
-         fontsize=7.5, style='italic', color='gray')
-
-ax.grid(True, alpha=0.3)
-# Pareto line between TripoSR and TRELLIS (best-known direction)
-ax.plot([lat_t, lat_tr_lit], [f_t, 0.999], '--', color='gray', alpha=0.4, zorder=1)
-plt.tight_layout(rect=[0, 0.14, 1, 1])
-plt.savefig('/home/anubhavanand/Desktop/reasearch papers/paper/figures/pareto_frontier.png',
-            dpi=300, bbox_inches='tight')
-print('Regenerated pareto_frontier.png with real measured data')
-print(f'  TripoSR: latency={lat_t:.3f}s, F@0.2={f_t:.4f}, VRAM={vram_t}GB')
-print(f'  LGM: latency={lat_l:.3f}s, F=pending, VRAM={vram_l}GB')
-print(f'  TRELLIS: deferred (OOM on T4)')
+out = os.path.join(os.path.dirname(__file__), "figures", "pareto_frontier.png")
+fig.savefig(out, dpi=300, bbox_inches="tight")
+print(f"saved {out} at 300 DPI")
