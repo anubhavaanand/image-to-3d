@@ -19,11 +19,15 @@ triposr = {"name": "TripoSR", "lat": 3.61, "lat_err": 0.28, "vram": 2.50,
            "f02": 0.702, "f02_err": 0.236, "one_mlips": 1 - 0.412, "n": "9/10"}
 lgm = {"name": "LGM", "lat": 8.39, "lat_err": 0.25, "vram": 5.57,
        "f02": 0.379, "f02_err": 0.221, "one_mlips": 1 - 0.285, "n": "10/10"}
+trellis = {"name": "TRELLIS", "lat": 27.00, "lat_err": 5.76, "vram": 7.37,
+           "f02": 0.628, "f02_err": 0.142, "one_mlips": 1 - 0.273, "n": "10/10",
+           "note": "staged offload, 8+8 steps"}
 
-OOM_GIB = 14.56  # single-T4 usable ceiling; TRELLIS FlexiCubes decode exceeds it (10/10 OOM)
+OOM_GIB = 14.56  # single-T4 usable ceiling; naive TRELLIS execution exceeds it (10/10 OOM)
 
 C_TRIPOSr = "#2b83ba"
 C_LGM = "#f57c00"
+C_TRELLIS = "#7b3294"
 C_OOM = "#d7191c"
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.16, 2.9))  # IEEE two-column width
@@ -33,7 +37,7 @@ for ax, ykey, ylabel in (
     (ax2, "one_mlips", "Perceptual quality: $1-$LPIPS $\\uparrow$"),
 ):
     # bubbles (area ~ VRAM)
-    for e, c in ((triposr, C_TRIPOSr), (lgm, C_LGM)):
+    for e, c in ((triposr, C_TRIPOSr), (lgm, C_LGM), (trellis, C_TRELLIS)):
         ax.errorbar(e["lat"], e[ykey], xerr=e["lat_err"],
                     yerr=e["f02_err"] if ykey == "f02" else None,
                     fmt="o", ms=e["vram"] * 3.2, mfc=c, mec="black", mew=0.8,
@@ -42,11 +46,11 @@ for ax, ykey, ylabel in (
         ax.annotate(e["name"], (e["lat"], e[ykey]), textcoords="offset points",
                     xytext=(8, 8), fontsize=8, fontweight="bold")
     ax.set_xscale("log")
-    ax.set_xlim(2, 26)
+    ax.set_xlim(2, 80)
     # clean log ticks: major at 2,4,6,8,10,20; no minor labels (they garbled the axis)
     import matplotlib.ticker as mticker
-    ax.xaxis.set_major_locator(mticker.FixedLocator([2, 4, 6, 8, 10, 20]))
-    ax.xaxis.set_major_formatter(mticker.FixedFormatter(["2", "4", "6", "8", "10", "20"]))
+    ax.xaxis.set_major_locator(mticker.FixedLocator([2, 4, 6, 8, 10, 20, 40, 80]))
+    ax.xaxis.set_major_formatter(mticker.FixedFormatter(["2", "4", "6", "8", "10", "20", "40", "80"]))
     ax.xaxis.set_minor_locator(mticker.NullLocator())
     ax.minorticks_off()
     if ykey == "f02":
@@ -58,15 +62,14 @@ for ax, ykey, ylabel in (
     ax.grid(True, which="major", alpha=0.25, zorder=0)
     ax.tick_params(labelsize=8)
 
-# annotate the TRELLIS OOM constraint on both panels
+# note: naive TRELLIS execution OOMs on the T4; plotted point = staged-offload configuration
 for ax in (ax1, ax2):
-    ax.axvline(25.5, color=C_OOM, linestyle="--", alpha=0.85, linewidth=1.4)
-    ax.annotate("TRELLIS: 10/10 OOM\n$256^3$ FlexiCubes\n> 14.56 GiB\n(needs $\\geq$24 GB GPU)",
-                xy=(0.02, 0.03), xycoords="axes fraction", ha="left", va="bottom",
-                fontsize=7, color=C_OOM,
+    ax.annotate("TRELLIS plotted: staged-offload config\n(8+8 steps). Naive execution: 10/10 OOM\n(FlexiCubes > 14.56 GiB ceiling)",
+                xy=(0.98, 0.03), xycoords="axes fraction", ha="right", va="bottom",
+                fontsize=6.5, color=C_OOM,
                 bbox=dict(boxstyle="round,pad=0.3", fc="#fdecea", ec=C_OOM, lw=0.8))
 
-ax1.legend(loc="upper right", fontsize=7.5, framealpha=0.95)
+ax1.legend(loc="center left", fontsize=7, framealpha=0.95, bbox_to_anchor=(0.02, 0.5))
 ax2.annotate("Bubble area $\\propto$ measured peak VRAM",
              xy=(0.02, 0.97), xycoords="axes fraction", ha="left", va="top", fontsize=7,
              style="italic", color="0.35")
