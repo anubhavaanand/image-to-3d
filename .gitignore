@@ -30,8 +30,6 @@ Thumbs.db
 # Outputs
 outputs/
 main.log
-<<<<<<< HEAD
 
-=======
->>>>>>> refs/remotes/origin/main
-
+# Paper sources live outside the repo (user decision 2026-10-16)
+paper/
