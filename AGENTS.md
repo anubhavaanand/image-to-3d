@@ -30,10 +30,10 @@ of Feed-Forward Paradigms for Single-Image 3D Reconstruction*
 LGM, and TRELLIS on the **same dataset (GSO, 100 objects)** with the **same
 metrics (CD, F-Score@{0.1,0.2,0.5}, PSNR, LPIPS, latency, peak VRAM)**.
 
-**Paper files (in parent directory):**
-- `../Final_Paper_LaTeX.tex` — IEEE-formatted LaTeX source
-- `../Final_Paper_Text_For_Word.txt` — plain text copy
-- `paper/references.bib` — complete BibTeX bibliography (now fixed)
+**Paper files (kept OUTSIDE this repo by design — see .gitignore):**
+- The paper LaTeX source, bibliography, figures and design docs live only in the
+  sibling workspace directory (`../paper/` on the author's machine). They are
+  intentionally not tracked here.
 
 **Source papers read and verified:**
 - `../2402.05054v1.pdf` — LGM (Tang et al., Feb 2024)
@@ -57,8 +57,7 @@ image-to-3d-benchmark/
 ├── requirements.txt             ← pip dependencies (NEW)
 ├── pyproject.toml               ← package definition
 │
-├── paper/
-│   └── references.bib           ← Full BibTeX for LaTeX paper (NEW)
+│   (paper/ intentionally not in this repo — paper sources are local-only)
 │
 ├── notebooks/
 │   └── colab_demo.ipynb         ← Quick TripoSR demo on Colab (NEW)
@@ -187,14 +186,13 @@ image-to-3d-benchmark/
 
 ### CRITICAL — must fix before paper submission
 - [ ] **Run actual benchmark** on Kaggle → fill real numbers into paper Table
-- [x] **Copy `references.bib`** to the same directory as `Final_Paper_LaTeX.tex`
-      (Done: references.bib linked and available in root and paper/)
+- [x] **Bibliography** maintained alongside the paper OUTSIDE this repo (local-only by design)
 - [x] **Add `figures/` directory** with actual figure images for the LaTeX paper
       (Done: linked to root, includes triposr, lgm, trellis pipelines and pareto_frontier)
 
 ### IMPORTANT — paper accuracy
 - [x] Section 3.1 of `Final_Paper_LaTeX.tex` cites `\cite{dinov2}` but TripoSR uses **DINOv1**.
-      (Done: verified \cite{dinov1} in paper/main.tex and Final_Paper_LaTeX.tex)
+      (Done: verified \cite{dinov1} in the local paper sources)
 - [x] The TRELLIS section describes `z_i ∈ ℝ^8` — this is the default 64³ / 8-channel
       setting. Verified against TRELLIS paper Table 3.
 - [x] 24 GB VRAM claim for TRELLIS is empirical — qualified in methodology and hardware section.
@@ -219,15 +217,10 @@ image-to-3d-benchmark/
 
 ## 8. Paper LaTeX Notes
 
-**Compile command:**
+**Compile command** (run in the WORKSPACE directory, not this repo — paper is local-only):
 ```bash
-cd "reasearch papers"
-# Copy bib file next to .tex (until the path is fixed)
-cp image-to-3d-benchmark/paper/references.bib .
-pdflatex Final_Paper_LaTeX.tex
-bibtex Final_Paper_LaTeX
-pdflatex Final_Paper_LaTeX.tex
-pdflatex Final_Paper_LaTeX.tex
+cd "reasearch papers/paper"
+pdflatex main && bibtex main && pdflatex main && pdflatex main
 ```
 
 **Citation keys used in the `.tex`:**
@@ -235,7 +228,7 @@ pdflatex Final_Paper_LaTeX.tex
 `dreamgaussian`, `3dgs2023`, `zero1to3`, `syncdreamer`, `lrm2024`, `splatterimage`,
 `instant3d`, `dinov1`, `dinov2`, `rectifiedflow`, `flexicubes2023`, `objaverse`
 
-All of these are now defined in `paper/references.bib`.
+All of these are defined in the local-only paper bibliography (workspace `paper/references.bib`).
 
 ---
 

@@ -139,13 +139,28 @@ class TrellisEngine(AbstractEngine):
 
         if self.output_format == "mesh":
             raw = outputs["mesh"][0]
+            # TRELLIS's MeshExtractResult carries per-vertex colors in `vertex_attrs`
+            # (6 channels: 3 base color + 3 normal-map, see cube2mesh.py). Keep the first
+            # 3 channels as vertex_colors so renders/PSNR use colored surfaces rather
+            # than flat grey. Values are already in [0, 1].
+            vcols = None
+            attrs = getattr(raw, "vertex_attrs", None)
+            if attrs is not None:
+                try:
+                    vcols = attrs.detach().cpu().numpy().astype(np.float32)[:, :3]
+                    vcols = np.clip(vcols, 0.0, 1.0)
+                except Exception as _ce:
+                    print(f"[TRELLIS] vertex color extraction failed (non-fatal): {_ce}")
+                    vcols = None
             mesh = Mesh3D(
                 vertices=raw.vertices.cpu().numpy().astype(np.float32),
                 faces=raw.faces.cpu().numpy().astype(np.int32),
+                vertex_colors=vcols,
             )
             metadata.update({
                 "vertex_count": len(mesh.vertices),
                 "face_count": len(mesh.faces),
+                "has_vertex_colors": vcols is not None,
             })
             torch.cuda.empty_cache()
             gc.collect()

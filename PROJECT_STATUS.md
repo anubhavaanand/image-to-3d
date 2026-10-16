@@ -1,3 +1,7 @@
+> **NOTE (2026-10-16):** the paper sources (`main.tex`, `references.bib`, figures, design docs)
+> intentionally live OUTSIDE this repo in the sibling workspace directory. This repo carries
+> only benchmark code, data tooling and status docs.
+
 # PROJECT STATUS & SESSION HANDOFF
 **IEEE Image-to-3D Benchmark Paper — Anubhav Anand (Amity University UP / CST-UP grant)**
 Last updated: 2026-10-12. Written so any new session (or collaborator) can resume without re-reading this conversation.

@@ -433,6 +433,27 @@ def vertex_colors_rgb(tm):
 # Same-background rendering helper (for fair PSNR)
 # ---------------------------------------------------------------------------
 
+def normalize_mesh_to_unit_sphere(mesh):
+    """Return a copy of a Mesh3D translated to origin and scaled so max radius = 1.
+    Must be applied to BOTH prediction and GT before rendering: raw model outputs
+    come at arbitrary scales (e.g. GSO raw meshes ~0.19 units extent vs the render
+    camera's ~1.15-unit visible half-height -> predictions rendered as sub-pixel specks).
+    """
+    import numpy as np
+    verts = np.array(mesh.vertices, dtype=np.float32)
+    if len(verts) == 0:
+        return mesh
+    c = (verts.max(0) + verts.min(0)) / 2
+    s = np.linalg.norm(verts - c, axis=1).max()
+    verts = (verts - c) / (s + 1e-8)
+    return type(mesh)(
+        vertices=verts,
+        faces=np.array(mesh.faces),
+        vertex_colors=(np.array(mesh.vertex_colors, dtype=np.float32)
+                       if getattr(mesh, "vertex_colors", None) is not None else None),
+    )
+
+
 def render_novel_view_same_bg(mesh, azimuth_deg: float = 45.0, resolution: int = 256,
                                background_color: tuple = (1.0, 1.0, 1.0)):
     """
@@ -640,10 +661,26 @@ class BenchmarkRunner:
                     if self.compute_render_metrics:
                         if result.mesh is not None:
                             try:
-                                # Render both prediction and GT with SAME background (white) for fair PSNR
+                                # Normalize the PREDICTION exactly like the GT (unit sphere)
+                                # before rendering - raw engine outputs have arbitrary scale
+                                # and would otherwise render as sub-pixel specks.
+                                pred_norm = normalize_mesh_to_unit_sphere(result.mesh)
                                 pred_render = render_novel_view_same_bg(
-                                    result.mesh, azimuth_deg=45, background_color=(1.0, 1.0, 1.0)
+                                    pred_norm, azimuth_deg=45, background_color=(1.0, 1.0, 1.0)
                                 )
+                                # persist the normalized prediction mesh for offline QA/re-render
+                                try:
+                                    import trimesh as _tm
+                                    _qm = self.output_dir / "qualitative" / sample_id
+                                    _qm.mkdir(parents=True, exist_ok=True)
+                                    _m = _tm.Trimesh(
+                                        vertices=pred_norm.vertices, faces=pred_norm.faces,
+                                        vertex_colors=(pred_norm.vertex_colors * 255).astype(np.uint8)
+                                        if pred_norm.vertex_colors is not None else None,
+                                        process=False)
+                                    _m.export(str(_qm / f"{engine_name}_mesh.obj"))
+                                except Exception:
+                                    pass
                                 if pred_render is not None:
                                     pred_render_to_save = pred_render
                                     gt_render_path = (
