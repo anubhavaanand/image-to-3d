@@ -33,3 +33,8 @@ main.log
 
 # Paper sources live outside the repo (user decision 2026-10-16)
 paper/
+
+# Engine source clones (not part of this repo)
+LGM/
+TripoSR/
+TRELLIS/
