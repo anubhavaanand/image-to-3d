@@ -161,19 +161,22 @@ def mesh_to_pointcloud(mesh: Optional[Mesh3D], n_points: int = 10_000) -> Option
 # ---------------------------------------------------------------------------
 
 def _candidate_rotations(n_yaw: int = 12) -> List[np.ndarray]:
-    """Generate 36 candidate 3D rotations (3 principal axis-up orientations x 12 yaw angles)."""
+    """Generate all 6 principal axis-up orientations x 12 Y-axis turntable yaw angles (72 poses)."""
     base_orientations = [
         np.eye(3, dtype=np.float32),
-        np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]], dtype=np.float32),
+        np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]], dtype=np.float32),
         np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]], dtype=np.float32),
+        np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]], dtype=np.float32),
+        np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]], dtype=np.float32),
+        np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=np.float32),
     ]
     rots = []
     for base in base_orientations:
         for i in range(n_yaw):
             angle = 2.0 * np.pi * i / n_yaw
             ca, sa = np.cos(angle), np.sin(angle)
-            rz = np.array([[ca, -sa, 0], [sa, ca, 0], [0, 0, 1]], dtype=np.float32)
-            rots.append(rz @ base)
+            ry = np.array([[ca, 0.0, sa], [0.0, 1.0, 0.0], [-sa, 0.0, ca]], dtype=np.float32)
+            rots.append(ry @ base)
     return rots
 
 

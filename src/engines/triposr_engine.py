@@ -1,12 +1,14 @@
 """
 TripoSR Engine — audited wrapper for VAST-AI-Research/TripoSR (stabilityai/TripoSR).
 
-Matches official run.py / gradio_app.py:
+Fixes applied:
 1. True RGBA foreground crop via `resize_foreground(rgba, 0.85)` + 0.5 mid-grey bg.
-2. Multi-depth inward-normal triplane color queries (`[0.0, -0.015, -0.030]`) to
-   capture the saturated interior NeRF color rather than the boundary blend.
-3. Applies TripoSR's canonical orientation transform (`to_gradio_3d_orientation`:
-   Rx(-90) then Ry(+90)) so the output mesh is upright (+Y up) in OpenGL space.
+2. Replaces `isosurface_helper.mc_func` with `skimage.measure.marching_cubes` on CPU
+   (with `v[:, [2, 1, 0]]` coordinate matching for `tsr/models/isosurface.py:50`)
+   so `tatsy/torchmcubes`'s buggy CUDA 12.8 kernel (`mcubes_cuda`) is never called.
+3. Multi-depth inward-normal triplane color queries (`[0.0, -0.015, -0.030]`) to
+   sample the saturated interior NeRF color core.
+4. Applies TripoSR's canonical orientation transform (`Rx(-90)` then `Ry(+90)`).
 """
 
 from __future__ import annotations
@@ -20,6 +22,30 @@ import numpy as np
 from PIL import Image
 
 from .base import AbstractEngine, ReconstructionResult, Mesh3D
+
+
+def _skimage_mc_func(level, iso=0.0):
+    """
+    Drop-in replacement for torchmcubes.marching_cubes that runs on CPU via
+    scikit-image and returns vertices in (Z, Y, X) order so tsr/models/isosurface.py
+    line 50 (`v_pos = v_pos[..., [2, 1, 0]]`) restores exact (X, Y, Z) coordinates.
+    """
+    import torch
+    from skimage import measure
+
+    if level.dim() == 4:
+        level = level.squeeze(0)
+    vol = level.detach().cpu().numpy().astype(np.float32)
+    try:
+        v, f, _, _ = measure.marching_cubes(vol, float(iso))
+        v = np.ascontiguousarray(v[:, [2, 1, 0]], dtype=np.float32)
+        f = np.ascontiguousarray(f, dtype=np.int64)
+    except Exception:
+        return (
+            torch.zeros((0, 3), dtype=torch.float32),
+            torch.zeros((0, 3), dtype=torch.int64),
+        )
+    return torch.from_numpy(v), torch.from_numpy(f)
 
 
 class TriposrEngine(AbstractEngine):
@@ -45,8 +71,12 @@ class TriposrEngine(AbstractEngine):
 
     def load_model(self) -> None:
         self._ensure_tsr_imports()
+        import tsr.models.isosurface as tsr_iso
         from tsr.system import TSR
         from tsr.utils import resize_foreground
+
+        # Patch marching_cubes inside tsr.models.isosurface before mesh extraction
+        tsr_iso.marching_cubes = _skimage_mc_func
 
         print("[TripoSR] Loading stabilityai/TripoSR …")
         self.model = TSR.from_pretrained(
@@ -57,7 +87,7 @@ class TriposrEngine(AbstractEngine):
         self.model.renderer.set_chunk_size(self.chunk_size)
         self.model.to(self.device)
         self._resize_foreground = resize_foreground
-        print("[TripoSR] Model loaded.")
+        print("[TripoSR] Model loaded (using verified scikit-image CPU Marching Cubes).")
 
     def _query_interior_vertex_colors(self, mesh_obj, scene_code) -> np.ndarray | None:
         import torch
@@ -111,12 +141,13 @@ class TriposrEngine(AbstractEngine):
 
         with torch.no_grad():
             scene_codes = self.model([image_input], device=self.device)
+            self.model.set_marching_cubes_resolution(self.resolution)
+            self.model.isosurface_helper.mc_func = _skimage_mc_func
             meshes = self.model.extract_mesh(
                 scene_codes, True, resolution=self.resolution
             )
 
         mesh_obj = meshes[0]
-        # Query colors in native triplane coordinates BEFORE rotating mesh to OpenGL Y-up
         vertex_colors = None
         try:
             vertex_colors = self._query_interior_vertex_colors(mesh_obj, scene_codes[0])
@@ -127,8 +158,6 @@ class TriposrEngine(AbstractEngine):
                 if vc.ndim == 2 and len(vc) == len(mesh_obj.vertices):
                     vertex_colors = vc[:, :3] / (255.0 if vc.max() > 1.0 else 1.0)
 
-        # Apply TripoSR's official to_gradio_3d_orientation (tsr/utils.py:471):
-        # maps (+X front, +Y right, +Z up) -> (+X right, +Y up, +Z front)
         rot_x = trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0])
         rot_y = trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0])
         mesh_obj.apply_transform(rot_y @ rot_x)
