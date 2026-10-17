@@ -1,68 +1,74 @@
-# Image-to-3D Benchmark Pipeline
+# Image-to-3D Unified Benchmark
 
-A complete, production-ready benchmarking pipeline for evaluating state-of-the-art Image-to-3D generation models.
+A standardized, ground-truth-referenced benchmark evaluating feed-forward single-image 3D reconstruction paradigms on Google Scanned Objects (GSO):
 
-## Architecture
+- **TripoSR** (*Triplane NeRF*, `arXiv:2403.02151`)
+- **LGM** (*Multi-View 3D Gaussian Splatting*, `arXiv:2402.05054`)
+- **TRELLIS** (*Structured 3D Latents + Rectified Flow*, `arXiv:2412.01506`)
+- **SPAR3D** (*Point-Aware Diffusion + DMTet PBR Mesh*, `arXiv:2501.04689`)
+
+## Repository Structure
 
 ```text
-+---------------+      +-------------------+      +-------------------+
-|               |      |                   |      |                   |
-|  Input Image  | +--> |  Preprocessing    | +--> |    3D Engines     |
-|               |      |  (Background      |      |  - TripoSR        |
-+---------------+      |   Removal)        |      |  - LGM            |
-                       |                   |      |  - TRELLIS        |
-                       +-------------------+      +--------+----------+
-                                                           |
-                                                           v
-                                                  +-------------------+
-                                                  |                   |
-                                                  |    Evaluation     |
-                                                  |  - Chamfer Dist.  |
-                                                  |  - F-Score        |
-                                                  |  - PSNR / LPIPS   |
-                                                  |                   |
-                                                  +--------+----------+
-                                                           |
-                                                           v
-                                                  +-------------------+
-                                                  |                   |
-                                                  |    Results /      |
-                                                  |    Export         |
-                                                  |  - GLB/PLY        |
-                                                  |  - LaTeX Table    |
-                                                  +-------------------+
+image-to-3d-benchmark/
+├── AGENTS.md                  # Full technical context & protocol specification
+├── PROJECT_STATUS.md          # Current benchmark status & run log
+├── app.py                     # Gradio interactive web application
+├── handpicked.txt             # Curated 100-object GSO evaluation catalog
+├── kaggle/
+│   └── kernel.ipynb           # Canonical Kaggle T4 benchmark notebook
+└── src/
+    ├── config.py              # Pydantic configuration schemas
+    ├── preprocessing/
+    │   └── background_removal.py
+    ├── engines/
+    │   ├── __init__.py
+    │   ├── base.py
+    │   ├── triposr_engine.py
+    │   ├── lgm_engine.py
+    │   ├── trellis_engine.py
+    │   ├── spar3d_engine.py
+    │   └── sf3d_engine.py
+    ├── evaluation/
+    │   ├── __init__.py
+    │   ├── benchmark_runner.py
+    │   ├── chamfer_distance.py
+    │   ├── f_score.py
+    │   └── psnr_lpips.py
+    ├── export/
+    │   ├── __init__.py
+    │   ├── glb_exporter.py
+    │   └── ply_exporter.py
+    └── api/
+        ├── __init__.py
+        └── server.py
 ```
 
-## Quick Start
+## Installation
 
-1. Install requirements:
-   ```bash
-   pip install -e .
-   ```
-
-2. Run the API Server:
-   ```bash
-   uvicorn src.api.server:app --reload
-   ```
-
-## API Usage
-
-List available engines:
 ```bash
-curl http://localhost:8000/engines
+pip install -e .
+pip install pydantic numpy scipy pandas torch pyrender trimesh rembg
 ```
 
-Run prediction:
+## Usage
+
 ```bash
-curl -X POST -F "file=@sample.png" -F "engine_type=TRIPOSR" http://localhost:8000/predict -o result.glb
+python -c "
+from src.engines.triposr_engine import TriposrEngine
+from src.evaluation.benchmark_runner import BenchmarkRunner
+
+runner = BenchmarkRunner(
+    dataset_path='./data/gso',
+    engines=[TriposrEngine()],
+    num_samples=10,
+)
+runner.run()
+print(runner.get_summary_df())
+"
 ```
 
-## Citation
+## License
 
-```bibtex
-@misc{image23d_benchmark_2023,
-  title={Image-to-3D Benchmark Pipeline},
-  author={Anand, Anubhav},
-  year={2023}
-}
-```
+This benchmark evaluates models with non-commercial licenses (SF3D, LGM).
+See each model card for licensing details.

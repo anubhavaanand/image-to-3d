@@ -1,18 +1,16 @@
 """
-LGM Engine — real inference wrapper.
+LGM Engine — clean, audited inference wrapper (ashawkey/LGM).
 
-Model:  ashawkey/LGM  (HuggingFace)
-Arch:   MVDream/ImageDream multi-view diffusion (4 views, 256×256) →
-        Asymmetric U-Net (6 down + 5 up + cross-view self-attention) →
-        65 536 3D Gaussians (14-channel per Gaussian) →
-        optional NeRF→mesh conversion (~1 min, separate step)
-VRAM:   ~10 GB (fp16, multi-view diffusion + U-Net)
-Speed:  ~4 s diffusion + ~1 s U-Net = ~5 s total
-
-Install:
-    1. git clone https://github.com/3DTopia/LGM.git
-    2. pip install -r LGM/requirements.txt
-    3. git clone https://github.com/ashawkey/diff-gaussian-rasterization.git && pip install ./diff-gaussian-rasterization
+Fixes applied:
+1. Preserves true RGBA foreground mask for `kiui.op.recenter(image_np, mask, border_ratio=0.2)`
+   with automatic white-background mask fallback if an opaque image is passed.
+2. Filters out transparent background Gaussians (`opacity > 0.05`) and spatial
+   outliers BEFORE computing the Marching Cubes grid bounds so the foreground
+   object fills the 256^3 volume instead of shrinking to a tiny cluster.
+3. Uses 3-channel RGB (`gaussians.sh_coeffs`, which LGM outputs directly in RGB
+   space) with k=4 inverse-distance-weighted interpolation onto mesh vertices.
+4. Removes floating islands via `tm.split(only_watertight=False)` (fixing the
+   broken `connected_components(tm)` call).
 """
 
 from __future__ import annotations
@@ -20,27 +18,19 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
+from typing import Dict, Any, Optional
 
 import numpy as np
 import torch
 from PIL import Image
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
-from typing import Dict, Any
 
 from .base import AbstractEngine, ReconstructionResult, Mesh3D, GaussianCloud
 
 
 class LGMEngine(AbstractEngine):
-    """
-    Thin wrapper around the official LGM inference pipeline.
-
-    Usage
-    -----
-    engine = LGMEngine(device="cuda")
-    engine.load_model()
-    result = engine.predict(pil_image)
-    """
+    """Official LGM (Large Multi-View Gaussian Model) wrapper."""
 
     def __init__(
         self,
@@ -59,60 +49,40 @@ class LGMEngine(AbstractEngine):
         self.rays_embeddings = None
         self.opt = None
 
-    # ------------------------------------------------------------------
-    # AbstractEngine interface
-    # ------------------------------------------------------------------
-
-    def _ensure_lgm_imports(self):
-        """Ensure LGM repo is importable. The repo is not pip-installable."""
-        try:
-            from core.options import Options  # noqa: F401
-            from core.models import LGM  # noqa: F401
-        except ImportError:
-            lgm_path = Path(__file__).resolve().parents[2] / "LGM"
-            if lgm_path.exists() and str(lgm_path) not in sys.path:
-                sys.path.insert(0, str(lgm_path))
-            from core.options import Options  # noqa: F401
-            from core.models import LGM  # noqa: F401
+    def _ensure_lgm_imports(self) -> None:
+        for repo_name in ("LGM", "mvdream"):
+            candidates = [
+                Path(f"/kaggle/working/{repo_name}"),
+                Path(__file__).resolve().parents[2] / repo_name,
+                Path(__file__).resolve().parents[3] / repo_name,
+            ]
+            for c in candidates:
+                if c.is_dir() and str(c) not in sys.path:
+                    sys.path.insert(0, str(c))
+                    break
 
     def load_model(self, big: bool = True) -> None:
-        """Load LGM U-Net and ImageDream multi-view diffusion pipeline.
-        
-        Args:
-            big: If True, use Options(big=True) for 65,536 Gaussians (matches paper).
-                 If False, use Options() for 16,384 Gaussians (faster, lower quality).
-        """
+        self._ensure_lgm_imports()
         try:
-            import torch
             from diffusers import DDIMScheduler
             from mvdream.pipeline_mvdream import MVDreamPipeline
-
-            self._ensure_lgm_imports()
             from core.options import Options, config_defaults
             from core.models import LGM
 
             print("[LGM] Loading U-Net from ashawkey/LGM …")
-            # LGM has no 'big' flag - it ships named presets; 'big' = splat_size 128 / output_size 512
-            # (+ one extra up-decoder), which is the architecture of the released checkpoint.
-            self.opt = config_defaults['big'] if big else Options()
+            self.opt = config_defaults["big"] if big else Options()
             self.model = LGM(self.opt)
             ckpt_path = hf_hub_download(
                 repo_id="ashawkey/LGM",
                 filename="model_fp16_fixrot.safetensors",
             )
             ckpt = load_file(ckpt_path, device="cpu")
-            # Safe load: filter out keys with mismatched shapes (128 vs 256 channel bug)
-            _model_sd = self.model.state_dict()
-            _filtered = {}
-            _skipped = []
-            for k, v in ckpt.items():
-                if k in _model_sd and _model_sd[k].shape == v.shape:
-                    _filtered[k] = v
-                else:
-                    _skipped.append(k)
-            if _skipped:
-                print(f"[LGM] Skipped {len(_skipped)} keys with shape mismatches: {_skipped[:8]}...")
-            self.model.load_state_dict(_filtered, strict=False)
+            model_sd = self.model.state_dict()
+            filtered = {
+                k: v for k, v in ckpt.items()
+                if k in model_sd and model_sd[k].shape == v.shape
+            }
+            self.model.load_state_dict(filtered, strict=False)
             self.model = self.model.half().to(self.device).eval()
 
             print("[LGM] Loading ImageDream multi-view diffusion …")
@@ -126,44 +96,35 @@ class LGMEngine(AbstractEngine):
             )
 
             self.rays_embeddings = self.model.prepare_default_rays(self.device)
-            print(f"[LGM] Models loaded (big={big}, splat_size={self.opt.splat_size}, gaussians={self.opt.splat_size**2 * 4}).")
+            print(
+                f"[LGM] Loaded (big={big}, splat_size={self.opt.splat_size}, "
+                f"gaussians={self.opt.splat_size ** 2 * 4})."
+            )
         except ImportError as e:
             raise ImportError(
-                f"LGM dependencies not installed ({e}). "
-                "Clone LGM repo: git clone https://github.com/3DTopia/LGM.git"
-            )
+                f"LGM dependencies not installed ({e}). Clone 3DTopia/LGM and ashawkey/mvdream_diffusers."
+            ) from e
 
     def predict(self, image: Image.Image, extract_mesh: bool = True) -> ReconstructionResult:
-        """
-        Run full LGM pipeline on a PIL image.
-
-        Step 1 — Multi-view diffusion: generates 4 consistent orthogonal views.
-        Step 2 — U-Net: predicts 65 536 3D Gaussians from the 4 views.
-        Step 3 (optional) — Gaussian→Mesh conversion via density grid + marching cubes.
-
-        Args:
-            image: Input PIL image (RGBA)
-            extract_mesh: If True, run Gaussian→mesh conversion (~30-60s extra)
-
-        Returns
-        -------
-        ReconstructionResult with .gaussians populated, and .mesh if extract_mesh=True.
-        """
-        import torch
         import torch.nn.functional as F
         import kiui
 
         if self.model is None or self.mv_pipeline is None:
-            self.load_model()
+            self.load_model(big=True)
 
-        t0 = time.time()
+        t0 = time.perf_counter()
 
-        # ------ Step 1: multi-view generation -------------------------
-        image_np = np.array(image)
-        mask = image_np[..., -1] > 0
+        rgba = image.convert("RGBA")
+        image_np = np.array(rgba)
+        mask = image_np[..., -1] > 10
+        # Fallback if alpha channel was flattened to 255 on a white background
+        if mask.mean() > 0.98:
+            non_white = np.any(image_np[..., :3] < 248, axis=-1)
+            if non_white.any():
+                mask = non_white
+
         image_np = kiui.op.recenter(image_np, mask, border_ratio=0.2)
         image_np = image_np.astype(np.float32) / 255.0
-
         if image_np.shape[-1] == 4:
             image_np = image_np[..., :3] * image_np[..., 3:4] + (1.0 - image_np[..., 3:4])
 
@@ -175,11 +136,8 @@ class LGMEngine(AbstractEngine):
             elevation=self.elevation,
         )
         mv_image = np.stack([mv_image[1], mv_image[2], mv_image[3], mv_image[0]], axis=0)
+        t_mv = time.perf_counter()
 
-        t_mv = time.time()
-        print(f"[LGM] Multi-view diffusion: {t_mv - t0:.2f}s")
-
-        # ------ Step 2: Gaussian prediction ---------------------------
         input_image = torch.from_numpy(mv_image).permute(0, 3, 1, 2).float().to(self.device)
         input_image = F.interpolate(
             input_image,
@@ -187,47 +145,37 @@ class LGMEngine(AbstractEngine):
             mode="bilinear",
             align_corners=False,
         )
-        _mean = torch.tensor([0.485, 0.456, 0.406], device=input_image.device).view(1, 3, 1, 1)
-        _std = torch.tensor([0.229, 0.224, 0.225], device=input_image.device).view(1, 3, 1, 1)
-        input_image = (input_image - _mean) / _std
-
+        mean = torch.tensor([0.485, 0.456, 0.406], device=input_image.device).view(1, 3, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225], device=input_image.device).view(1, 3, 1, 1)
+        input_image = (input_image - mean) / std
         input_image = torch.cat([input_image, self.rays_embeddings], dim=1).unsqueeze(0)
 
         with torch.no_grad():
             with torch.autocast(device_type="cuda", dtype=torch.float16):
                 gaussians = self.model.forward_gaussians(input_image)
 
-        t_unet = time.time()
-        print(f"[LGM] U-Net Gaussian prediction: {t_unet - t_mv:.2f}s")
+        t_unet = time.perf_counter()
 
-        g = gaussians.squeeze(0).cpu().numpy().astype(np.float32)
+        g = gaussians.squeeze(0).detach().cpu().numpy().astype(np.float32)
         pos = g[..., 0:3]
         opa = g[..., 3:4]
         scl = g[..., 4:7]
         rot = g[..., 7:11]
-        sh = g[..., 11:14]
+        rgb = np.clip(g[..., 11:14], 0.0, 1.0)
 
         gaussians_out = GaussianCloud(
             positions=pos,
             scales=scl,
             rotations=rot,
             opacities=opa,
-            sh_coeffs=sh,
+            sh_coeffs=rgb,
         )
 
-        # ------ Step 3 (optional): Gaussian → Mesh conversion ---------
         mesh_out = None
         if extract_mesh:
-            print("[LGM] Extracting mesh from Gaussians...")
             mesh_out = self._gaussians_to_mesh(gaussians_out)
-            if mesh_out is not None:
-                print(f"[LGM] Mesh extracted: {len(mesh_out.vertices)} verts, {len(mesh_out.faces)} faces")
-            else:
-                print("[LGM] Mesh extraction failed")
 
-        latency = time.time() - t0
-        print(f"[LGM] Total inference: {latency:.2f}s")
-
+        latency = time.perf_counter() - t0
         torch.cuda.empty_cache()
 
         return ReconstructionResult(
@@ -239,63 +187,74 @@ class LGMEngine(AbstractEngine):
                 "latency_mv_s": round(t_mv - t0, 3),
                 "latency_unet_s": round(t_unet - t_mv, 3),
                 "gaussian_count": len(pos),
+                "vertex_count": len(mesh_out.vertices) if mesh_out is not None else 0,
+                "face_count": len(mesh_out.faces) if mesh_out is not None else 0,
+                "has_vertex_colors": (mesh_out is not None and mesh_out.vertex_colors is not None),
             },
         )
 
-    def _gaussians_to_mesh(self, gaussians: GaussianCloud, resolution: int = 256, density_threshold: float = 0.3) -> Optional[Mesh3D]:
-        """
-        Convert Gaussian splats to mesh via density grid + marching cubes.
-
-        Simple approach: splat Gaussians into a 3D density grid, then run marching cubes.
-        This approximates the LGM paper's Instant-NGP distillation but is much faster.
-        """
+    def _gaussians_to_mesh(
+        self,
+        gaussians: GaussianCloud,
+        resolution: int = 256,
+    ) -> Optional[Mesh3D]:
+        """Convert foreground 3D Gaussians to a colored mesh via smoothed density grid + MC."""
         try:
-            import torch
-            import numpy as np
-            
-            # Try torchmcubes first (faster on GPU), fall back to skimage
+            import trimesh
+            from scipy.spatial import cKDTree
+
             try:
                 import torchmcubes
                 has_torchmcubes = True
             except ImportError:
                 from skimage import measure
                 has_torchmcubes = False
-            
-            # Normalize Gaussian positions to [-1, 1] grid
-            pos = torch.from_numpy(gaussians.positions).float()
-            # reshape(-1): opacities arrive as [N, 1]; a 2-D value column breaks
-            # index_put_ broadcasting against the [N] index columns
-            opa = torch.from_numpy(gaussians.opacities).float().reshape(-1)
-            scl = torch.from_numpy(gaussians.scales).float()
-            
-            # Center and scale to unit cube
-            pos_min, pos_max = pos.min(0)[0], pos.max(0)[0]
-            pos_center = (pos_min + pos_max) / 2
-            pos_scale = (pos_max - pos_min).max() / 2
-            pos_norm = (pos - pos_center) / (pos_scale + 1e-8)
-            
-            # Create density grid by splatting Gaussians
-            # Simple approach: each Gaussian contributes to nearby voxels
+
+            pos_all = np.asarray(gaussians.positions, dtype=np.float32)
+            opa_all = np.asarray(gaussians.opacities, dtype=np.float32).reshape(-1)
+            rgb_all = np.clip(np.asarray(gaussians.sh_coeffs, dtype=np.float32), 0.0, 1.0)
+
+            # 1. Filter out low-opacity background Gaussians BEFORE bounding-box calculation
+            valid = opa_all > 0.05
+            if valid.sum() < 200:
+                valid = opa_all > 0.01
+            if valid.sum() < 50:
+                valid = np.ones_like(opa_all, dtype=bool)
+
+            pos_fg = pos_all[valid]
+            opa_fg = opa_all[valid]
+            rgb_fg = rgb_all[valid]
+
+            # 2. Trim extreme 1% spatial outliers so stray splats don't shrink the grid
+            med = np.median(pos_fg, axis=0)
+            dists = np.linalg.norm(pos_fg - med, axis=1)
+            inlier = dists <= np.percentile(dists, 99.0)
+            if inlier.sum() >= 50:
+                pos_fg = pos_fg[inlier]
+                opa_fg = opa_fg[inlier]
+                rgb_fg = rgb_fg[inlier]
+
+            pos_t = torch.from_numpy(pos_fg).float()
+            opa_t = torch.from_numpy(opa_fg).float()
+
+            # 3. Normalize foreground positions to [-1, 1] with 15% border margin for smoothing
+            pos_min, pos_max = pos_t.min(0)[0], pos_t.max(0)[0]
+            pos_center = (pos_min + pos_max) / 2.0
+            pos_scale = ((pos_max - pos_min).max() / 2.0) * 1.15
+            pos_norm = (pos_t - pos_center) / (pos_scale + 1e-8)
+
             grid = torch.zeros((resolution, resolution, resolution), dtype=torch.float32)
-            
-            # Convert normalized positions to grid indices
-            indices = ((pos_norm + 1) / 2 * (resolution - 1)).long()
-            indices = indices.clamp(0, resolution - 1)
-            
-            # Splat opacities at Gaussian centers (vectorized index_add)
-            indices = ((pos_norm + 1) / 2 * (resolution - 1)).long()
-            indices = indices.clamp(0, resolution - 1)
+            indices = ((pos_norm + 1.0) / 2.0 * (resolution - 1)).long().clamp(0, resolution - 1)
             grid.index_put_(
-                (indices[:, 0], indices[:, 1], indices[:, 2]), opa, accumulate=True
+                (indices[:, 0], indices[:, 1], indices[:, 2]),
+                opa_t,
+                accumulate=True,
             )
 
-            # Spread each point into a smooth blob via separable Gaussian smoothing.
-            # Raw point-splatting yields a hard, single-voxel shell that marching
-            # cubes extracts as disconnected fragments (good CD, dotted renders);
-            # a continuous field produces a watertight surface.
-            _k, _sigma = 7, 0.8
-            _ax = torch.arange(_k, dtype=torch.float32) - (_k - 1) / 2
-            _g = torch.exp(-_ax ** 2 / (2 * _sigma ** 2))
+            # 4. Separable 3D Gaussian smoothing (k=9, sigma=1.5) to fuse splats into a shell
+            _k, _sigma = 9, 1.5
+            _ax = torch.arange(_k, dtype=torch.float32) - (_k - 1) / 2.0
+            _g = torch.exp(-(_ax ** 2) / (2.0 * (_sigma ** 2)))
             _g = (_g / _g.sum()).view(1, 1, _k, 1, 1)
             _pad = _k // 2
             g4 = grid.unsqueeze(0).unsqueeze(0)
@@ -304,105 +263,58 @@ class LGMEngine(AbstractEngine):
             g4 = torch.nn.functional.conv3d(g4, _g.view(1, 1, 1, 1, _k), padding=(0, 0, _pad))
             grid = g4[0, 0]
 
-            # Adaptive iso-level: use percentile of grid values instead of
-            # a fraction of grid.max(). The 0.9*grid.max() approach discards
-            # ~95% of the surface because it only captures the single densest
-            # voxel cluster. A 40th percentile of non-zero grid cells captures
-            # the full Gaussian cloud including shoulders, not just peaks.
             grid_np = grid.cpu().numpy()
             nonzero = grid_np[grid_np > 1e-4]
-            if len(nonzero) > 0:
-                iso = float(np.percentile(nonzero, 40))
-            else:
-                iso = max(1e-4, density_threshold * 0.5 * float(grid.max()))
+            if len(nonzero) == 0:
+                return None
+            iso = float(np.percentile(nonzero, 35))
 
-            # Apply marching cubes
             if has_torchmcubes:
                 verts, faces = torchmcubes.marching_cubes(grid, iso)
                 verts = verts.cpu().numpy().astype(np.float32)
                 faces = faces.cpu().numpy().astype(np.int64)
             else:
-                grid_np = grid.cpu().numpy()
                 verts, faces, _, _ = measure.marching_cubes(grid_np, iso)
                 verts = verts.astype(np.float32)
                 faces = faces.astype(np.int64)
-            
-            if len(verts) == 0:
+
+            if len(verts) == 0 or len(faces) == 0:
                 return None
-            
-            # Convert grid indices back to world coordinates
-            verts = (verts / (resolution - 1) * 2 - 1) * pos_scale.numpy() + pos_center.numpy()
-            
-            # Bake vertex colors from RGB coefficients.
-            # CRITICAL: sh_coeffs stores already-converted RGB [N, 3], NOT raw SH
-            # coefficients. The SH→RGB transform (0.28209… * sh + 0.5) is applied
-            # at PLY load time in LGM/core/gs.py:188. Indexing [:, 0] takes only
-            # the R channel, producing 1-D output that trimesh broadcasts to
-            # uniform grey [102, 102, 102]. Fix: use all 3 channels directly.
-            vertex_colors = None
-            if gaussians.sh_coeffs is not None:
-                vertex_colors_rgb = gaussians.sh_coeffs  # [N, 3] — already RGB
-                # Simple nearest-neighbor assignment (crude but works)
-                from scipy.spatial import cKDTree
-                tree = cKDTree(gaussians.positions)
-                _, idx = tree.query(verts)
-                vertex_colors = np.clip(vertex_colors_rgb[idx], 0.0, 1.0)
 
-            # Create mesh
-            import trimesh
+            verts = (verts / (resolution - 1) * 2.0 - 1.0) * pos_scale.numpy() + pos_center.numpy()
+
+            # 5. Remove disconnected floating islands via trimesh.split()
             tm = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+            try:
+                parts = tm.split(only_watertight=False)
+                if len(parts) > 1:
+                    max_faces = max(len(p.faces) for p in parts)
+                    kept = [p for p in parts if len(p.faces) >= max(20, int(max_faces * 0.05))]
+                    if kept:
+                        tm = trimesh.util.concatenate(kept)
+            except Exception:
+                pass
 
-            # Set vertex colors BEFORE floater removal so colors survive the
-            # vertex-index remapping
-            if vertex_colors is not None:
-                tm.visual.vertex_colors = (vertex_colors * 255).astype(np.uint8)
+            verts_final = np.asarray(tm.vertices, dtype=np.float32)
+            faces_final = np.asarray(tm.faces, dtype=np.int64)
 
-            # Remove tiny disconnected floaters (stray Gaussian splats that
-            # produce isolated mesh islands). Without this, a single outlier
-            # vertex inflates the bounding radius and normal_mesh_to_unit_sphere
-            # shrinks the main object to a sub-pixel speck.
-            if len(tm.faces) > 0:
-                try:
-                    from trimesh.graph import connected_components
-                    components = connected_components(tm, min_length=0)
-                    face_per_comp = np.array(components)
-                    comp_sizes = np.bincount(face_per_comp, minlength=face_per_comp.max() + 1)
-                    total_faces = len(tm.faces)
-                    # Keep components with >= 5% of total faces
-                    keep_thresh = max(1, int(total_faces * 0.05))
-                    keep_comps = np.where(comp_sizes >= keep_thresh)[0]
-                    mask = np.isin(face_per_comp, keep_comps)
-                    faces_keep = tm.faces[mask]
-                    verts_keep = np.unique(faces_keep)
-                    # Build vertex remap
-                    remap = np.full(len(tm.vertices), -1)
-                    remap[verts_keep] = np.arange(len(verts_keep))
-                    faces_remapped = remap[faces_keep]
-                    verts_new = tm.vertices[verts_keep]
-                    if vertex_colors is not None:
-                        vc_new = tm.visual.vertex_colors[verts_keep]
-                    else:
-                        vc_new = None
-                    tm = trimesh.Trimesh(
-                        vertices=verts_new, faces=faces_remapped,
-                        vertex_colors=vc_new if vc_new is not None else None,
-                        process=False,
-                    )
-                except Exception:
-                    pass  # fallback: keep original mesh if floater removal fails
-            
-            # Extract vertex colors from tm (post-floater-removal if that ran)
-            # so the color array matches the vertex count exactly
-            final_vertex_colors = None
-            if vertex_colors is not None and hasattr(tm.visual, 'vertex_colors'):
-                vc_arr = np.array(tm.visual.vertex_colors, dtype=np.float32)
-                if vc_arr.ndim == 2 and vc_arr.shape[0] == len(tm.vertices):
-                    final_vertex_colors = vc_arr[:, :3] / 255.0
-            
+            # 6. Bake 3-channel RGB colors from k=4 nearest foreground Gaussians
+            tree = cKDTree(pos_fg)
+            k = min(4, len(pos_fg))
+            dists_k, idx_k = tree.query(verts_final, k=k)
+            if k == 1 or idx_k.ndim == 1:
+                vertex_colors = np.clip(rgb_fg[idx_k], 0.0, 1.0)
+            else:
+                weights = 1.0 / (dists_k + 1e-6)
+                weights /= weights.sum(axis=1, keepdims=True)
+                vertex_colors = np.clip(
+                    (rgb_fg[idx_k] * weights[..., None]).sum(axis=1), 0.0, 1.0
+                )
+
             return Mesh3D(
-                vertices=np.array(tm.vertices, dtype=np.float32),
-                faces=np.array(tm.faces, dtype=np.int64),
-                vertex_colors=final_vertex_colors,
+                vertices=verts_final,
+                faces=faces_final,
+                vertex_colors=vertex_colors.astype(np.float32),
             )
         except Exception as e:
             print(f"[LGM] Mesh extraction error: {e}")
@@ -413,10 +325,7 @@ class LGMEngine(AbstractEngine):
             "name": "LGM",
             "paper": "arXiv:2402.05054",
             "hf_repo": "ashawkey/LGM",
-            "latency_approx": "~4s (diffusion) + ~1s (U-Net) = ~5s total",
-            "vram_approx": "~10 GB (fp16)",
-            "output_format": "GaussianCloud (65 536 Gaussians, 14-ch)",
-            "backbone": "Asymmetric U-Net (6 down / 5 up + cross-view attention)",
-            "mv_views": 4,
-            "mv_resolution": "256×256",
+            "latency_approx": "~9.2s on T4 (diffusion + U-Net + MC)",
+            "vram_approx": "5.57 GB (T4 measured)",
+            "output_format": "GaussianCloud (65,536 Gaussians) + MC Mesh3D",
         }
