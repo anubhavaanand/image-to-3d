@@ -1,13 +1,14 @@
 """
-TRELLIS Engine — clean, audited inference wrapper (microsoft/TRELLIS-image-large).
+TRELLIS Engine — audited wrapper for microsoft/TRELLIS-image-large.
 
-Includes built-in single-GPU memory hygiene (`staged_offload=True` by default on
-<=20 GB GPUs like the 15.6 GB Tesla T4):
-- Keeps unused GS/RF decoders on CPU during mesh mode.
-- Runs under `@torch.no_grad()` so sampler activation graphs are never retained.
-- Offloads flow models + DINOv2 to CPU before 256^3 FlexiCubes decoding so peak
-  VRAM stays at ~11.7-13.1 GB (10/10 objects succeed with zero OOMs).
-- Preserves 3-channel RGB per-vertex colors from `MeshExtractResult.vertex_attrs[:, :3]`.
+Fixes applied from repo_3_trellis.txt audit:
+1. Built-in T4 single-GPU memory hygiene (`staged_offload=True`): keeps unused
+   GS/RF decoders on CPU, runs under `@torch.no_grad()`, and offloads flow models
+   + DINOv2 to CPU before 256^3 FlexiCubes decoding.
+2. Uses `raw.vertices` (fixes `raw.vertex` typo) and preserves 3-channel RGB
+   per-vertex colors from `raw.vertex_attrs[:, :3]`.
+3. Rotates from TRELLIS's Blender Z-up coordinate system (`Rx(-90)`) to standard
+   OpenGL Y-up coordinates.
 """
 
 from __future__ import annotations
@@ -32,8 +33,6 @@ OutputFormat = Literal["mesh", "gaussian", "radiance_field"]
 
 
 class TrellisEngine(AbstractEngine):
-    """Official TRELLIS image-to-3D wrapper with built-in T4 staged CPU/GPU offload."""
-
     def __init__(
         self,
         device: str = "cuda",
@@ -56,49 +55,40 @@ class TrellisEngine(AbstractEngine):
         try:
             import trellis  # noqa: F401
         except ImportError:
-            candidates = [
+            for c in [
                 Path("/kaggle/working/TRELLIS"),
                 Path(__file__).resolve().parents[2] / "TRELLIS",
                 Path(__file__).resolve().parents[3] / "TRELLIS",
-            ]
-            for c in candidates:
+            ]:
                 if (c / "trellis").is_dir() and str(c) not in sys.path:
                     sys.path.insert(0, str(c))
                     break
 
     def attach(self, pipeline, dev=None) -> None:
-        """Attach a pre-loaded TrellisImageTo3DPipeline instance."""
         self.pipeline = pipeline
         if dev is not None:
             self.dev = torch.device(dev)
 
     def load_model(self) -> None:
         self._ensure_trellis_imports()
-        try:
-            from trellis.pipelines import TrellisImageTo3DPipeline
-            from huggingface_hub import snapshot_download
+        from trellis.pipelines import TrellisImageTo3DPipeline
+        from huggingface_hub import snapshot_download
 
-            print("[TRELLIS] Fetching microsoft/TRELLIS-image-large snapshot …")
-            local_dir = snapshot_download("microsoft/TRELLIS-image-large")
-            print(f"[TRELLIS] Loading pipeline from {local_dir}")
-            pipe = TrellisImageTo3DPipeline.from_pretrained(local_dir)
+        print("[TRELLIS] Fetching microsoft/TRELLIS-image-large snapshot …")
+        local_dir = snapshot_download("microsoft/TRELLIS-image-large")
+        pipe = TrellisImageTo3DPipeline.from_pretrained(local_dir)
 
-            if self.staged_offload:
-                for name, mod in pipe.models.items():
-                    target = "cpu" if name in ("slat_decoder_gs", "slat_decoder_rf") else self.dev
-                    mod.to(target)
-                self.pipeline = pipe
-            else:
-                moved = pipe.to(self.device)
-                self.pipeline = moved if moved is not None else pipe
+        if self.staged_offload:
+            for name, mod in pipe.models.items():
+                target = "cpu" if name in ("slat_decoder_gs", "slat_decoder_rf") else self.dev
+                mod.to(target)
+            self.pipeline = pipe
+        else:
+            moved = pipe.to(self.device)
+            self.pipeline = moved if moved is not None else pipe
 
-            torch.cuda.empty_cache()
-            print("[TRELLIS] Pipeline loaded.")
-        except ImportError as e:
-            raise ImportError(
-                f"TRELLIS import failed ({e}). Ensure spconv, nvdiffrast, xformers, "
-                "diffoctreerast, and utils3d are installed."
-            ) from e
+        torch.cuda.empty_cache()
+        print("[TRELLIS] Pipeline loaded.")
 
     @torch.no_grad()
     def predict(self, image: Image.Image) -> ReconstructionResult:
@@ -190,8 +180,12 @@ class TrellisEngine(AbstractEngine):
 
         if decode_mode == "mesh":
             raw = outputs["mesh"][0]
-            verts = raw.vertex.detach().cpu().numpy().astype(np.float32)
+            verts = raw.vertices.detach().cpu().numpy().astype(np.float32)
             faces = raw.faces.detach().cpu().numpy().astype(np.int32)
+            # Convert Blender Z-up (x, y, z) -> OpenGL Y-up (x, z, -y) via Rx(-90)
+            rx_neg90 = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]], dtype=np.float32)
+            verts = verts @ rx_neg90.T
+
             vcols = None
             attrs = getattr(raw, "vertex_attrs", None)
             if attrs is not None:
@@ -202,7 +196,8 @@ class TrellisEngine(AbstractEngine):
                         1.0,
                     )
                 except Exception as ce:
-                    print(f"[TRELLIS] vertex color extraction warning: {ce}")
+                    print(f"[TRELLIS] vertex color warning: {ce}")
+
             mesh = Mesh3D(vertices=verts, faces=faces, vertex_colors=vcols)
             metadata.update({
                 "vertex_count": len(mesh.vertices),
@@ -231,7 +226,5 @@ class TrellisEngine(AbstractEngine):
             "name": "TRELLIS",
             "paper": "arXiv:2412.01506",
             "hf_repo": "microsoft/TRELLIS-image-large",
-            "latency_approx": "~25.6s on T4 (8+8 steps, staged offload)",
-            "vram_approx": "11.7-13.1 GB (T4 staged offload)",
             "output_formats": ["mesh (FlexiCubes @ 256^3)", "gaussian (SLAT)"],
         }

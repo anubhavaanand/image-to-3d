@@ -290,7 +290,9 @@ def bake_texture_to_vertices(tm):
 
         uv = getattr(tm.visual, "uv", None)
         material = getattr(tm.visual, "material", None)
-        img = getattr(material, "image", None) if material is not None else None
+        img = (
+            getattr(material, "image", None) or getattr(material, "baseColorTexture", None)
+        ) if material is not None else None
         if uv is None or img is None:
             return tm.visual
         if not isinstance(img, _PILImage.Image):

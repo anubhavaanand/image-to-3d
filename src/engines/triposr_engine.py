@@ -1,14 +1,12 @@
 """
-TripoSR Engine — clean, audited inference wrapper (stabilityai/TripoSR).
+TripoSR Engine — audited wrapper for VAST-AI-Research/TripoSR (stabilityai/TripoSR).
 
-Fixes applied:
-1. Preserves true RGBA alpha mask for `resize_foreground(image, 0.85)` and
-   composites onto the exact 0.5 mid-grey background TripoSR was trained on.
-2. Samples the triplane NeRF color field using multi-depth normal-offset queries
-   (`v_pos`, `v_pos - 0.015*n`, `v_pos - 0.030*n`) so Marching Cubes vertices
-   sample the saturated interior color core rather than the 0.5-grey boundary.
-3. Optional UV texture bake fallback with correct [0, 1] float scaling (fixes
-   the previous `/ 255.0` double-division bug).
+Matches official run.py / gradio_app.py:
+1. True RGBA foreground crop via `resize_foreground(rgba, 0.85)` + 0.5 mid-grey bg.
+2. Multi-depth inward-normal triplane color queries (`[0.0, -0.015, -0.030]`) to
+   capture the saturated interior NeRF color rather than the boundary blend.
+3. Applies TripoSR's canonical orientation transform (`to_gradio_3d_orientation`:
+   Rx(-90) then Ry(+90)) so the output mesh is upright (+Y up) in OpenGL space.
 """
 
 from __future__ import annotations
@@ -25,8 +23,6 @@ from .base import AbstractEngine, ReconstructionResult, Mesh3D
 
 
 class TriposrEngine(AbstractEngine):
-    """Official TripoSR feed-forward triplane-NeRF wrapper."""
-
     def __init__(self, device: str = "cuda", chunk_size: int = 8192, resolution: int = 256):
         self.device = device
         self.chunk_size = chunk_size
@@ -38,49 +34,37 @@ class TriposrEngine(AbstractEngine):
         try:
             from tsr.system import TSR  # noqa: F401
         except ImportError:
-            candidates = [
+            for c in [
                 Path("/kaggle/working/TripoSR"),
                 Path(__file__).resolve().parents[2] / "TripoSR",
                 Path(__file__).resolve().parents[3] / "TripoSR",
-            ]
-            for c in candidates:
+            ]:
                 if (c / "tsr").is_dir() and str(c) not in sys.path:
                     sys.path.insert(0, str(c))
                     break
 
     def load_model(self) -> None:
         self._ensure_tsr_imports()
-        try:
-            from tsr.system import TSR
-            from tsr.utils import resize_foreground
+        from tsr.system import TSR
+        from tsr.utils import resize_foreground
 
-            print("[TripoSR] Loading model from stabilityai/TripoSR …")
-            self.model = TSR.from_pretrained(
-                "stabilityai/TripoSR",
-                config_name="config.yaml",
-                weight_name="model.ckpt",
-            )
-            self.model.renderer.set_chunk_size(self.chunk_size)
-            self.model.to(self.device)
-            self._resize_foreground = resize_foreground
-            print("[TripoSR] Model loaded.")
-        except ImportError as e:
-            raise ImportError(
-                f"TripoSR is not installed ({e}). Clone VAST-AI-Research/TripoSR."
-            ) from e
+        print("[TripoSR] Loading stabilityai/TripoSR …")
+        self.model = TSR.from_pretrained(
+            "stabilityai/TripoSR",
+            config_name="config.yaml",
+            weight_name="model.ckpt",
+        )
+        self.model.renderer.set_chunk_size(self.chunk_size)
+        self.model.to(self.device)
+        self._resize_foreground = resize_foreground
+        print("[TripoSR] Model loaded.")
 
     def _query_interior_vertex_colors(self, mesh_obj, scene_code) -> np.ndarray | None:
-        """
-        Query the TripoSR triplane NeRF color MLP at the surface vertices and
-        slightly inward along vertex normals so vertices get the saturated
-        interior color rather than the 0.5-grey boundary blend.
-        """
         import torch
 
         verts = np.asarray(mesh_obj.vertices, dtype=np.float32)
         if len(verts) == 0:
             return None
-
         normals = np.asarray(mesh_obj.vertex_normals, dtype=np.float32)
         if normals.shape != verts.shape:
             normals = np.zeros_like(verts)
@@ -104,6 +88,7 @@ class TriposrEngine(AbstractEngine):
 
     def predict(self, image: Image.Image) -> ReconstructionResult:
         import torch
+        import trimesh
 
         if self.model is None:
             self.load_model()
@@ -112,14 +97,12 @@ class TriposrEngine(AbstractEngine):
 
         rgba = image.convert("RGBA")
         arr = np.array(rgba)
-        # Ensure foreground alpha mask exists even if caller passed an RGB image on white bg
         if arr[..., 3].min() > 250:
             non_white = np.any(arr[..., :3] < 248, axis=-1)
             if non_white.any():
                 arr[..., 3] = non_white.astype(np.uint8) * 255
                 rgba = Image.fromarray(arr, mode="RGBA")
 
-        # Crop foreground to 85% and composite onto 0.5 mid-grey background
         fg = self._resize_foreground(rgba, 0.85)
         img_np = np.array(fg).astype(np.float32) / 255.0
         alpha = img_np[..., 3:4]
@@ -129,21 +112,26 @@ class TriposrEngine(AbstractEngine):
         with torch.no_grad():
             scene_codes = self.model([image_input], device=self.device)
             meshes = self.model.extract_mesh(
-                scene_codes,
-                True,
-                resolution=self.resolution,
+                scene_codes, True, resolution=self.resolution
             )
 
         mesh_obj = meshes[0]
+        # Query colors in native triplane coordinates BEFORE rotating mesh to OpenGL Y-up
         vertex_colors = None
         try:
             vertex_colors = self._query_interior_vertex_colors(mesh_obj, scene_codes[0])
         except Exception as e:
-            print(f"[TripoSR] Interior color query fallback ({e})")
+            print(f"[TripoSR] Interior color fallback ({e})")
             if getattr(mesh_obj.visual, "vertex_colors", None) is not None:
                 vc = np.asarray(mesh_obj.visual.vertex_colors, dtype=np.float32)
                 if vc.ndim == 2 and len(vc) == len(mesh_obj.vertices):
                     vertex_colors = vc[:, :3] / (255.0 if vc.max() > 1.0 else 1.0)
+
+        # Apply TripoSR's official to_gradio_3d_orientation (tsr/utils.py:471):
+        # maps (+X front, +Y right, +Z up) -> (+X right, +Y up, +Z front)
+        rot_x = trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0])
+        rot_y = trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0])
+        mesh_obj.apply_transform(rot_y @ rot_x)
 
         latency = time.perf_counter() - t0
         print(f"[TripoSR] Inference done in {latency:.2f}s ({len(mesh_obj.vertices)} verts)")
@@ -153,7 +141,6 @@ class TriposrEngine(AbstractEngine):
             faces=np.asarray(mesh_obj.faces, dtype=np.int64),
             vertex_colors=vertex_colors,
         )
-
         torch.cuda.empty_cache()
 
         return ReconstructionResult(
@@ -172,7 +159,5 @@ class TriposrEngine(AbstractEngine):
             "name": "TripoSR",
             "paper": "arXiv:2403.02151",
             "hf_repo": "stabilityai/TripoSR",
-            "latency_approx": "<0.5s (A100) / ~3.5s (T4)",
-            "vram_approx": "2.5 GB (T4 measured)",
             "output_format": "mesh (Marching Cubes @ 256^3)",
         }
