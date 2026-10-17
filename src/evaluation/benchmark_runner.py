@@ -22,7 +22,7 @@ import pandas as pd
 from PIL import Image
 import torch
 
-from ..engines.base import AbstractEngine
+from ..engines.base import AbstractEngine, Mesh3D
 from ..evaluation.chamfer_distance import compute_chamfer_distance, compute_chamfer_distance_symmetric
 from ..evaluation.f_score import compute_f_score
 from ..evaluation.psnr_lpips import compute_psnr, compute_lpips
@@ -102,8 +102,8 @@ def load_gso_samples(
             gt_points, _ = trimesh.sample.sample_surface(gt_mesh, 10_000)
             gt_points = np.array(gt_points, dtype=np.float32)
 
-            # Normalise GT to unit sphere centred at origin
-            center = (gt_points.max(0) + gt_points.min(0)) / 2
+            # Normalise GT to unit sphere centred at origin (centroid, not bbox)
+            center = gt_points.mean(0)
             scale = np.linalg.norm(gt_points - center, axis=1).max()
             gt_points = (gt_points - center) / (scale + 1e-8)
 
@@ -140,7 +140,7 @@ def mesh_to_pointcloud(mesh, n_points: int = 10_000) -> Optional[np.ndarray]:
         pts, _ = trimesh.sample.sample_surface(tm, n_points)
         pts = np.array(pts, dtype=np.float32)
 
-        center = (pts.max(0) + pts.min(0)) / 2
+        center = pts.mean(0)
         scale = np.linalg.norm(pts - center, axis=1).max()
         pts = (pts - center) / (scale + 1e-8)
         return pts
@@ -171,7 +171,14 @@ def render_novel_view(mesh, azimuth_deg: float = 45.0, resolution: int = 256):
             ),
             process=False,
         )
-        scene = pyrender.Scene()
+        scene = pyrender.Scene(
+            bg_color=np.array([1.0, 1.0, 1.0, 1.0]),
+            ambient_light=np.array([0.65, 0.65, 0.65]),
+        )
+        # Ambient light on Scene + directional light replaces the old approach
+        # of intensity=3.0 with default [0,0,0] ambient. Ambient=[0.65,0.65,0.65]
+        # provides even fill to prevent darkening while the directional light
+        # (1.0,1.0,1.0 @ 1.8) adds natural shading on visible surfaces.
         scene.add(pyrender.Mesh.from_trimesh(tm))
 
         az = np.radians(azimuth_deg)
@@ -183,7 +190,7 @@ def render_novel_view(mesh, azimuth_deg: float = 45.0, resolution: int = 256):
         ])
         camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
         scene.add(camera, pose=camera_pose)
-        scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=3.0))
+        scene.add(pyrender.DirectionalLight(color=np.array([1.0, 1.0, 1.0]), intensity=1.8))
 
         renderer = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
         # SKIP_CULL_FACES: double-sided rendering without a material override
@@ -237,14 +244,15 @@ def align_mesh_to_gt(pred_mesh, gt_points, n_rotations: int = 12):
         pred_pts, _ = trimesh.sample.sample_surface(tm, 10_000)
         pred_pts = np.array(pred_pts, dtype=np.float32)
         
-        # Normalize pred to unit sphere (same as GT)
-        center = (pred_pts.max(0) + pred_pts.min(0)) / 2
+        # Normalize pred to unit sphere (same as GT) — use centroid not bbox center
+        center = pred_pts.mean(0)
         scale = np.linalg.norm(pred_pts - center, axis=1).max()
         pred_pts_norm = (pred_pts - center) / (scale + 1e-8)
         
         best_cd = float('inf')
         best_rotation = None
         best_pts = None
+        best_yaw_angle = None
         
         # Rotation search around yaw axis
         for i in range(n_rotations):
@@ -291,20 +299,49 @@ def align_mesh_to_gt(pred_mesh, gt_points, n_rotations: int = 12):
                 best_cd = cd
                 best_rotation = R
                 best_pts = aligned_pts
+                best_yaw_angle = angle
         
-        # Apply best transformation to mesh
-        if best_rotation is not None:
-            # Reconstruct full transform
-            tm.vertices = (tm.vertices - center) @ best_rotation.T + centroid_gt
-            # Note: centroid_gt should be computed from matched points
-            # For simplicity, we use the GT centroid
+        # Apply full transform to mesh vertices:
+        # 1. Normalize to unit sphere (centered + scaled)
+        # 2. Apply best yaw rotation
+        # 3. Apply Kabsch rotation
+        # 4. Translate to GT centroid
+        if best_rotation is not None and best_pts is not None and best_yaw_angle is not None:
             gt_center = gt_points.mean(axis=0)
-            tm.vertices = (tm.vertices - center) @ best_rotation.T + gt_center
+            rot_z = np.array([
+                [np.cos(best_yaw_angle), -np.sin(best_yaw_angle), 0],
+                [np.sin(best_yaw_angle),  np.cos(best_yaw_angle), 0],
+                [0,                       0,                      1]
+            ], dtype=np.float32)
+            
+            # Apply: normalize → yaw → Kabsch → translate to GT centroid
+            mesh_verts = np.array(tm.vertices, dtype=np.float32)
+            # Step 1: normalize to unit sphere (same as pred_pts_norm)
+            mesh_verts = (mesh_verts - center) / (scale + 1e-8)
+            # Step 2: apply yaw rotation
+            mesh_verts = mesh_verts @ rot_z.T
+            # Step 3: apply Kabsch rotation
+            mesh_verts = mesh_verts @ best_rotation.T
+            # Step 4: translate to GT centroid
+            mesh_verts = mesh_verts + gt_center
+            
+            tm.vertices = mesh_verts
         
-        return tm, best_cd
+        # Return as Mesh3D so render_novel_view_same_bg can access .vertex_colors
+        vertex_colors = None
+        if hasattr(tm.visual, 'vertex_colors') and tm.visual.vertex_colors is not None:
+            vc_arr = np.array(tm.visual.vertex_colors)
+            if vc_arr.ndim == 2 and vc_arr.shape[0] == len(tm.vertices):
+                vertex_colors = vc_arr[:, :3].astype(np.float32) / 255.0
+        
+        return Mesh3D(
+            vertices=np.array(tm.vertices, dtype=np.float32),
+            faces=np.array(tm.faces, dtype=np.int64),
+            vertex_colors=vertex_colors,
+        ), best_cd, best_pts
         
     except Exception:
-        return None, float('inf')
+        return None, float('inf'), None
 
 
 def align_mesh_to_gt_simple(pred_mesh, gt_points, n_rotations: int = 12):
@@ -332,8 +369,8 @@ def align_mesh_to_gt_simple(pred_mesh, gt_points, n_rotations: int = 12):
         pred_pts, _ = trimesh.sample.sample_surface(tm, 10_000)
         pred_pts = np.array(pred_pts, dtype=np.float32)
         
-        # Normalize once
-        center = (pred_pts.max(0) + pred_pts.min(0)) / 2
+        # Normalize once — use centroid not bbox center
+        center = pred_pts.mean(0)
         scale = np.linalg.norm(pred_pts - center, axis=1).max()
         pred_pts_norm = (pred_pts - center) / (scale + 1e-8)
         
@@ -438,13 +475,21 @@ def normalize_mesh_to_unit_sphere(mesh):
     Must be applied to BOTH prediction and GT before rendering: raw model outputs
     come at arbitrary scales (e.g. GSO raw meshes ~0.19 units extent vs the render
     camera's ~1.15-unit visible half-height -> predictions rendered as sub-pixel specks).
+    
+    Uses surface-area-weighted centroid (mean of vertices) rather than bounding-box
+    center, so asymmetric objects are balanced around the origin and fill the frame.
+    
+    Uses 99.5th percentile radius instead of max — prevents a single stray
+    Gaussian-splat floater from inflating the scale and shrinking the object
+    to a sub-pixel speck.
     """
     import numpy as np
     verts = np.array(mesh.vertices, dtype=np.float32)
     if len(verts) == 0:
         return mesh
-    c = (verts.max(0) + verts.min(0)) / 2
-    s = np.linalg.norm(verts - c, axis=1).max()
+    c = verts.mean(0)  # centroid (not bbox center) for better centering
+    radii = np.linalg.norm(verts - c, axis=1)
+    s = float(np.percentile(radii, 99.5))  # robust to floaters
     verts = (verts - c) / (s + 1e-8)
     return type(mesh)(
         vertices=verts,
@@ -483,10 +528,16 @@ def render_novel_view_same_bg(mesh, azimuth_deg: float = 45.0, resolution: int =
             ),
             process=False,
         )
-        scene = pyrender.Scene()
-        scene.add(pyrender.Mesh.from_trimesh(tm))  # keep vertex colors - a custom material would strip them!
-        scene.bg_color = np.array([*background_color, 1.0])
-        
+        scene = pyrender.Scene(
+            bg_color=np.array([*background_color, 1.0]),
+            ambient_light=np.array([0.65, 0.65, 0.65]),
+        )
+        # Ambient light on Scene (not a separate AmbientLight) + directional light.
+        # Old approach: intensity=3.0 with default [0,0,0] ambient → bright TRELLIS
+        # objects lost 1.08-1.24 dB PSNR from 5x dimming. New: ambient=[0.65,0.65,0.65]
+        # for even fill + directional [1,1,1]@1.8 for natural highlights.
+        scene.add(pyrender.Mesh.from_trimesh(tm))
+
         az = np.radians(azimuth_deg)
         camera_pose = np.array([
             [np.cos(az), 0, np.sin(az), 2.0 * np.sin(az)],
@@ -496,7 +547,7 @@ def render_novel_view_same_bg(mesh, azimuth_deg: float = 45.0, resolution: int =
         ])
         camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
         scene.add(camera, pose=camera_pose)
-        scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=3.0))
+        scene.add(pyrender.DirectionalLight(color=np.array([1.0, 1.0, 1.0]), intensity=1.8))
         
         renderer = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
         # SKIP_CULL_FACES: double-sided rendering without a material override
@@ -584,7 +635,7 @@ class BenchmarkRunner:
             print(f"  Evaluating: {engine_name}")
             print(f"{'='*60}")
 
-            for sample in samples:
+            for idx, sample in enumerate(samples):
                 sample_id = sample["id"]
                 print(f"  [{engine_name}] {sample_id} … ", end="", flush=True)
 
@@ -616,23 +667,31 @@ class BenchmarkRunner:
 
                     # ---- geometry metrics (requires mesh) -------------
                     geo_metrics: Dict[str, Any] = {}
+                    aligned_for_render = False
                     pred_pts = mesh_to_pointcloud(result.mesh)
                     if pred_pts is not None:
                         gt_pts = sample["gt_points"]
-                        
-                        # For TripoSR: apply rotation search alignment (TripoSR protocol)
-                        if engine_name == "TripoSR" and result.mesh is not None:
-                            # Use rotation search alignment (TripoSR paper protocol)
-                            # Returns (aligned_mesh, best_cd, aligned_points_normalized)
-                            aligned_mesh, best_cd, aligned_pts_norm = align_mesh_to_gt_simple(
+
+                        # Apply canonical rotation search + ICP alignment for ALL
+                        # engines (SPAR3D Section 4.1 protocol). The previous code
+                        # only aligned TripoSR; TRELLIS and LGM also benefit because
+                        # mesh orientation is arbitrary in 3D space.
+                        if result.mesh is not None:
+                            aligned_mesh, best_cd, aligned_pts_norm = align_mesh_to_gt(
                                 result.mesh, gt_pts, n_rotations=12
                             )
                             if aligned_mesh is not None and best_cd != float('inf') and aligned_pts_norm is not None:
-                                # Use symmetric mean-distance CD (TripoSR convention)
+                                # Use symmetric mean-distance CD (alignment result)
                                 geo_metrics["chamfer_distance"] = float(best_cd)
-                                # Use pre-normalized aligned points for F-score (avoids triple normalization)
+                                # Use pre-normalized aligned points for F-score
                                 fs = compute_f_score(aligned_pts_norm, gt_pts, thresholds=[0.1, 0.2, 0.5])
                                 geo_metrics.update(fs)
+                                # Store aligned mesh for rendering so PSNR/LPIPS
+                                # uses the canonical-orientation prediction.
+                                # The aligned mesh is already normalized to the GT
+                                # unit sphere, so rendering should NOT re-normalize.
+                                result.mesh = aligned_mesh
+                                aligned_for_render = True
                             else:
                                 # Fallback to symmetric CD without alignment
                                 geo_metrics["chamfer_distance"] = float(
@@ -641,7 +700,7 @@ class BenchmarkRunner:
                                 fs = compute_f_score(pred_pts, gt_pts, thresholds=[0.1, 0.2, 0.5])
                                 geo_metrics.update(fs)
                         else:
-                            # Other engines: use symmetric CD convention (mean-distance)
+                            # No mesh for alignment — use un-aligned metrics
                             geo_metrics["chamfer_distance"] = float(
                                 compute_chamfer_distance_symmetric(pred_pts, gt_pts)
                             )
@@ -664,7 +723,13 @@ class BenchmarkRunner:
                                 # Normalize the PREDICTION exactly like the GT (unit sphere)
                                 # before rendering - raw engine outputs have arbitrary scale
                                 # and would otherwise render as sub-pixel specks.
-                                pred_norm = normalize_mesh_to_unit_sphere(result.mesh)
+                                # BUT: if alignment already placed the mesh in GT unit-sphere
+                                # space, skip re-normalization to preserve the canonical
+                                # orientation that matches gt_novel.png.
+                                if aligned_for_render:
+                                    pred_norm = result.mesh
+                                else:
+                                    pred_norm = normalize_mesh_to_unit_sphere(result.mesh)
                                 pred_render = render_novel_view_same_bg(
                                     pred_norm, azimuth_deg=45, background_color=(1.0, 1.0, 1.0)
                                 )
@@ -678,7 +743,12 @@ class BenchmarkRunner:
                                         vertex_colors=(pred_norm.vertex_colors * 255).astype(np.uint8)
                                         if pred_norm.vertex_colors is not None else None,
                                         process=False)
-                                    _m.export(str(_qm / f"{engine_name}_mesh.obj"))
+                                    # Cap .obj saves: ~26 MB/object, so the 100-object
+                                    # full run would ship ~2.7 GB compressed of meshes.
+                                    # Keep metrics+renders for all; persist .obj QA mesh
+                                    # for only the first 10 objects (idx < 10).
+                                    if idx < 10:
+                                        _m.export(str(_qm / f"{engine_name}_mesh.obj"))
                                 except Exception:
                                     pass
                                 if pred_render is not None:
@@ -699,9 +769,9 @@ class BenchmarkRunner:
                                             # Bake UV texture to vertex colors (to_color()
                                             # returns flat gray for GSO's textured meshes)
                                             gt_mesh.visual = bake_texture_to_vertices(gt_mesh)
-                                            # Normalize GT mesh same as in load_gso_samples
+                                            # Normalize GT mesh (centroid-based, same as load_gso_samples)
                                             pts = np.array(gt_mesh.vertices, dtype=np.float32)
-                                            c = (pts.max(0) + pts.min(0)) / 2
+                                            c = pts.mean(0)
                                             s = np.linalg.norm(pts - c, axis=1).max()
                                             gt_mesh.apply_translation(-c)
                                             gt_mesh.apply_scale(1.0 / (s + 1e-8))

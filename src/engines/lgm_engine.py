@@ -242,10 +242,10 @@ class LGMEngine(AbstractEngine):
             },
         )
 
-    def _gaussians_to_mesh(self, gaussians: GaussianCloud, resolution: int = 256, density_threshold: float = 0.5) -> Optional[Mesh3D]:
+    def _gaussians_to_mesh(self, gaussians: GaussianCloud, resolution: int = 256, density_threshold: float = 0.3) -> Optional[Mesh3D]:
         """
         Convert Gaussian splats to mesh via density grid + marching cubes.
-        
+
         Simple approach: splat Gaussians into a 3D density grid, then run marching cubes.
         This approximates the LGM paper's Instant-NGP distillation but is much faster.
         """
@@ -293,7 +293,7 @@ class LGMEngine(AbstractEngine):
             # Raw point-splatting yields a hard, single-voxel shell that marching
             # cubes extracts as disconnected fragments (good CD, dotted renders);
             # a continuous field produces a watertight surface.
-            _k, _sigma = 7, 1.2
+            _k, _sigma = 7, 0.8
             _ax = torch.arange(_k, dtype=torch.float32) - (_k - 1) / 2
             _g = torch.exp(-_ax ** 2 / (2 * _sigma ** 2))
             _g = (_g / _g.sum()).view(1, 1, _k, 1, 1)
@@ -304,9 +304,17 @@ class LGMEngine(AbstractEngine):
             g4 = torch.nn.functional.conv3d(g4, _g.view(1, 1, 1, 1, _k), padding=(0, 0, _pad))
             grid = g4[0, 0]
 
-            # Adaptive iso-level: fixed thresholds are meaningless here because
-            # peak density depends on how many Gaussians overlap per object.
-            iso = max(1e-4, density_threshold * 0.9 * float(grid.max()))
+            # Adaptive iso-level: use percentile of grid values instead of
+            # a fraction of grid.max(). The 0.9*grid.max() approach discards
+            # ~95% of the surface because it only captures the single densest
+            # voxel cluster. A 40th percentile of non-zero grid cells captures
+            # the full Gaussian cloud including shoulders, not just peaks.
+            grid_np = grid.cpu().numpy()
+            nonzero = grid_np[grid_np > 1e-4]
+            if len(nonzero) > 0:
+                iso = float(np.percentile(nonzero, 40))
+            else:
+                iso = max(1e-4, density_threshold * 0.5 * float(grid.max()))
 
             # Apply marching cubes
             if has_torchmcubes:
@@ -325,25 +333,76 @@ class LGMEngine(AbstractEngine):
             # Convert grid indices back to world coordinates
             verts = (verts / (resolution - 1) * 2 - 1) * pos_scale.numpy() + pos_center.numpy()
             
-            # Create mesh
-            import trimesh
-            tm = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
-            
-            # Bake vertex colors from SH coefficients (simplified)
+            # Bake vertex colors from RGB coefficients.
+            # CRITICAL: sh_coeffs stores already-converted RGB [N, 3], NOT raw SH
+            # coefficients. The SH→RGB transform (0.28209… * sh + 0.5) is applied
+            # at PLY load time in LGM/core/gs.py:188. Indexing [:, 0] takes only
+            # the R channel, producing 1-D output that trimesh broadcasts to
+            # uniform grey [102, 102, 102]. Fix: use all 3 channels directly.
             vertex_colors = None
             if gaussians.sh_coeffs is not None:
-                # Use DC coefficient (first SH band) as color
-                sh_dc = gaussians.sh_coeffs[:, 0]  # [N, 3]
+                vertex_colors_rgb = gaussians.sh_coeffs  # [N, 3] — already RGB
                 # Simple nearest-neighbor assignment (crude but works)
                 from scipy.spatial import cKDTree
                 tree = cKDTree(gaussians.positions)
                 _, idx = tree.query(verts)
-                vertex_colors = np.clip(sh_dc[idx], 0, 1)
+                vertex_colors = np.clip(vertex_colors_rgb[idx], 0.0, 1.0)
+
+            # Create mesh
+            import trimesh
+            tm = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+
+            # Set vertex colors BEFORE floater removal so colors survive the
+            # vertex-index remapping
+            if vertex_colors is not None:
+                tm.visual.vertex_colors = (vertex_colors * 255).astype(np.uint8)
+
+            # Remove tiny disconnected floaters (stray Gaussian splats that
+            # produce isolated mesh islands). Without this, a single outlier
+            # vertex inflates the bounding radius and normal_mesh_to_unit_sphere
+            # shrinks the main object to a sub-pixel speck.
+            if len(tm.faces) > 0:
+                try:
+                    from trimesh.graph import connected_components
+                    components = connected_components(tm, min_length=0)
+                    face_per_comp = np.array(components)
+                    comp_sizes = np.bincount(face_per_comp, minlength=face_per_comp.max() + 1)
+                    total_faces = len(tm.faces)
+                    # Keep components with >= 5% of total faces
+                    keep_thresh = max(1, int(total_faces * 0.05))
+                    keep_comps = np.where(comp_sizes >= keep_thresh)[0]
+                    mask = np.isin(face_per_comp, keep_comps)
+                    faces_keep = tm.faces[mask]
+                    verts_keep = np.unique(faces_keep)
+                    # Build vertex remap
+                    remap = np.full(len(tm.vertices), -1)
+                    remap[verts_keep] = np.arange(len(verts_keep))
+                    faces_remapped = remap[faces_keep]
+                    verts_new = tm.vertices[verts_keep]
+                    if vertex_colors is not None:
+                        vc_new = tm.visual.vertex_colors[verts_keep]
+                    else:
+                        vc_new = None
+                    tm = trimesh.Trimesh(
+                        vertices=verts_new, faces=faces_remapped,
+                        vertex_colors=vc_new if vc_new is not None else None,
+                        process=False,
+                    )
+                except Exception:
+                    pass  # fallback: keep original mesh if floater removal fails
+            
+            # Extract vertex colors from tm (post-floater-removal if that ran)
+            # so the color array matches the vertex count exactly
+            final_vertex_colors = None
+            if vertex_colors is not None and hasattr(tm.visual, 'vertex_colors'):
+                vc_arr = np.array(tm.visual.vertex_colors, dtype=np.float32)
+                if vc_arr.ndim == 2 and vc_arr.shape[0] == len(tm.vertices):
+                    final_vertex_colors = vc_arr[:, :3] / 255.0
             
             return Mesh3D(
-                vertices=tm.vertices,
-                faces=tm.faces,
-                vertex_colors=vertex_colors,
+                vertices=np.array(tm.vertices, dtype=np.float32),
+                faces=np.array(tm.faces, dtype=np.int64),
+                vertex_colors=final_vertex_colors,
             )
         except Exception as e:
             print(f"[LGM] Mesh extraction error: {e}")

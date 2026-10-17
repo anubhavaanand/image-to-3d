@@ -95,7 +95,7 @@ class TriposrEngine(AbstractEngine):
             scene_codes = self.model([image_input], device=self.device)
             meshes = self.model.extract_mesh(
                 scene_codes,
-                True,
+                False,  # skip vertex colors — MC vertices yield near-uniform grey via sigmoid
                 resolution=256,
             )
 
@@ -104,16 +104,58 @@ class TriposrEngine(AbstractEngine):
         latency = time.time() - t0
         print(f"[TripoSR] Inference done in {latency:.2f}s")
 
+        # Bake UV texture from the triplane NeRF decoder (queries at dense atlas
+        # texels instead of sparse MC vertices, restoring full color fidelity).
+        # Falls back to mesh vertex colors (near-grey sigmoid) if xatlas/moderngl unavailable.
+        vertex_colors = None
+        try:
+            from tsr.bake_texture import bake_texture as _bake_texture
+            texture = _bake_texture(mesh_obj, self.model, scene_codes[0], 512)
+            if texture is not None:
+                # Sample UV texture at vertex positions via barycentric lookup
+                from scipy.spatial import cKDTree
+                uv = texture["uvs"]
+                colors = texture["colors"]  # (H, W, 4)
+                # Build vertex colors by querying the rendered atlas at each vertex's UV
+                # Use the atlas vmapping to get per-vertex UV coords
+                vmapping = texture["vmapping"]
+                vertex_uvs = uv[vmapping]  # (n_verts, 2) in [0, 1]
+                h, w = colors.shape[:2]
+                u = np.clip((vertex_uvs[:, 0] * (w - 1)).astype(int), 0, w - 1)
+                v = np.clip(((1.0 - vertex_uvs[:, 1]) * (h - 1)).astype(int), 0, h - 1)
+                rgba = colors[v, u]  # (n_verts, 4)
+                vertex_colors = rgba[:, :3].astype(np.float32) / 255.0
+                # Clip to valid range (sigmoid output)
+                vertex_colors = np.clip(vertex_colors, 0.0, 1.0)
+                print(f"[TripoSR] Baked UV texture: {len(vertex_colors)} verts with color")
+        except Exception as e:
+            print(f"[TripoSR] Texture baking unavailable ({e}), falling back to "
+                  f"mesh vertex colors (near-grey via sigmoid)")
+            # Fallback: re-extract with vertex colors. The MC vertices use sigmoid
+            # activation which gives near-uniform grey, but that's better than
+            # None (which produces completely black renders in pyrender).
+            try:
+                fallback_meshes = self.model.extract_mesh(
+                    scene_codes,
+                    True,  # has_vertex_color=True — gets sigmoid-based greys
+                    resolution=256,
+                )
+                mesh_obj = fallback_meshes[0] if isinstance(fallback_meshes, list) else fallback_meshes
+                # Extract whatever vertex colors the fallback mesh has
+                if mesh_obj.visual.vertex_colors is not None:
+                    vc_arr = np.array(mesh_obj.visual.vertex_colors, dtype=np.float32)
+                    if vc_arr.ndim == 2 and vc_arr.shape[0] == len(mesh_obj.vertices):
+                        vertex_colors = vc_arr[:, :3] / 255.0
+                    else:
+                        vertex_colors = None
+            except Exception as fallback_e:
+                print(f"[TripoSR] Fallback also failed: {fallback_e}")
+                vertex_colors = None
+
         result_mesh = Mesh3D(
             vertices=np.array(mesh_obj.vertices, dtype=np.float32),
             faces=np.array(mesh_obj.faces, dtype=np.int32),
-            vertex_colors=(
-                np.array(mesh_obj.visual.vertex_colors[:, :3], dtype=np.float32) / 255.0
-                if mesh_obj.visual is not None
-                and hasattr(mesh_obj.visual, "vertex_colors")
-                and mesh_obj.visual.vertex_colors is not None
-                else None
-            ),
+            vertex_colors=vertex_colors,
         )
 
         torch.cuda.empty_cache()
