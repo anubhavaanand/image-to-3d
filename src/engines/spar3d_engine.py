@@ -29,7 +29,7 @@ class Spar3dEngine(AbstractEngine):
         self,
         device: str = "cuda",
         texture_resolution: int = 1024,
-        low_vram_mode: bool = True,
+        low_vram_mode: bool = False,
         foreground_ratio: float = 1.3,
     ):
         self.device = device
