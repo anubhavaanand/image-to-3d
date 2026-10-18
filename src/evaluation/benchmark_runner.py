@@ -91,6 +91,9 @@ def load_gso_samples(
             center = gt_points.mean(axis=0)
             scale = np.linalg.norm(gt_points - center, axis=1).max()
             gt_points = (gt_points - center) / (scale + 1e-8)
+            # Apply GSO Z-up -> OpenGL Y-up conversion (rotate -90 degrees around X-axis)
+            rot_x = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]], dtype=np.float32)
+            gt_points = gt_points @ rot_x.T
         except Exception:
             continue
 
@@ -147,6 +150,7 @@ def mesh_to_pointcloud(mesh: Optional[Mesh3D], n_points: int = 10_000) -> Option
             faces=norm_mesh.faces,
             process=False,
         )
+        tm.fix_normals()
         pts, _ = trimesh.sample.sample_surface(tm, n_points)
         pts = np.asarray(pts, dtype=np.float32)
         center = pts.mean(axis=0)
@@ -204,6 +208,7 @@ def align_mesh_to_gt(
             faces=norm_mesh.faces,
             process=False,
         )
+        tm.fix_normals()
         pred_pts, _ = trimesh.sample.sample_surface(tm, 10_000)
         pred_pts = np.asarray(pred_pts, dtype=np.float32)
 
@@ -331,11 +336,14 @@ def vertex_colors_rgb(tm) -> Optional[np.ndarray]:
 
 def render_novel_view_same_bg(
     mesh: Mesh3D,
-    azimuth_deg: float = 45.0,
+    azimuth_deg: float = 20.0,
+    elevation_deg: float = 15.0,
+    distance: float = 2.4,
+    fovy_deg: float = 40.0,
     resolution: int = 256,
     background_color: tuple = (1.0, 1.0, 1.0),
 ) -> Optional[np.ndarray]:
-    """Render a Mesh3D at `azimuth_deg` on a solid background with balanced lighting."""
+    """Render a Mesh3D at `azimuth_deg` and `elevation_deg` on a solid background with balanced lighting."""
     try:
         import trimesh
         import pyrender
@@ -353,6 +361,7 @@ def render_novel_view_same_bg(
             vertex_colors=vcols_uint8,
             process=False,
         )
+        tm.fix_normals()
         scene = pyrender.Scene(
             bg_color=np.array([*background_color, 1.0], dtype=np.float32),
             ambient_light=np.array([0.65, 0.65, 0.65], dtype=np.float32),
@@ -360,13 +369,20 @@ def render_novel_view_same_bg(
         scene.add(pyrender.Mesh.from_trimesh(tm))
 
         az = np.radians(azimuth_deg)
-        camera_pose = np.array([
-            [np.cos(az),  0.0, np.sin(az), 2.0 * np.sin(az)],
-            [0.0,         1.0, 0.0,        0.0             ],
-            [-np.sin(az), 0.0, np.cos(az), 2.0 * np.cos(az)],
-            [0.0,         0.0, 0.0,        1.0             ],
+        el = np.radians(elevation_deg)
+        # Rotation matrices: first around Y by azimuth, then around X by elevation
+        R = np.array([
+            [np.cos(az), 0, np.sin(az)],
+            [np.sin(el)*np.sin(az), np.cos(el), -np.sin(el)*np.cos(az)],
+            [-np.cos(el)*np.sin(az), np.sin(el), np.cos(el)*np.cos(az)]
         ], dtype=np.float32)
-        camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
+        # Camera position: distance * R[:,2]
+        cam_pos = distance * R[:,2]
+        # Build camera-to-world matrix
+        camera_pose = np.eye(4, dtype=np.float32)
+        camera_pose[:3, :3] = R
+        camera_pose[:3, 3] = cam_pos
+        camera = pyrender.PerspectiveCamera(yfov=np.radians(fovy_deg))
         scene.add(camera, pose=camera_pose)
         scene.add(
             pyrender.DirectionalLight(color=np.array([1.0, 1.0, 1.0]), intensity=1.8),
@@ -384,12 +400,12 @@ def render_novel_view_same_bg(
     except Exception:
         return None
 
-
-def render_novel_view(mesh: Mesh3D, azimuth_deg: float = 45.0, resolution: int = 256):
+def render_novel_view(mesh: Mesh3D, resolution: int = 256):
     """Alias for render_novel_view_same_bg with white background."""
     return render_novel_view_same_bg(
-        mesh, azimuth_deg=azimuth_deg, resolution=resolution, background_color=(1.0, 1.0, 1.0)
+        mesh, resolution=resolution, background_color=(1.0, 1.0, 1.0)
     )
+
 
 
 # ---------------------------------------------------------------------------
@@ -447,6 +463,13 @@ class BenchmarkRunner:
             try:
                 gt_tm = trimesh.load(str(gt_mesh_path), force="mesh")
                 gt_tm.visual = bake_texture_to_vertices(gt_tm)
+                # Apply GSO Z-up -> OpenGL Y-up (Rx(-90)) so GT stands upright
+                gt_tm.apply_transform(np.array([
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, -1.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ], dtype=np.float32))
                 pts = np.asarray(gt_tm.vertices, dtype=np.float32)
                 c = pts.mean(axis=0)
                 s = np.linalg.norm(pts - c, axis=1).max()
@@ -456,7 +479,7 @@ class BenchmarkRunner:
                     vertex_colors=vertex_colors_rgb(gt_tm),
                 )
                 return render_novel_view_same_bg(
-                    gt_mesh_obj, azimuth_deg=45.0, background_color=(1.0, 1.0, 1.0)
+                    gt_mesh_obj, azimuth_deg=65.0, background_color=(1.0, 1.0, 1.0)
                 )
             except Exception:
                 pass
@@ -540,7 +563,7 @@ class BenchmarkRunner:
                                 else normalize_mesh_to_unit_sphere(result.mesh)
                             )
                             pred_render = render_novel_view_same_bg(
-                                pred_norm, azimuth_deg=45.0, background_color=(1.0, 1.0, 1.0)
+                                pred_norm, azimuth_deg=65.0, background_color=(1.0, 1.0, 1.0)
                             )
                             if idx < self.save_mesh_limit:
                                 try:

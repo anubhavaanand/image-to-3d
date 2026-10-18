@@ -195,6 +195,7 @@ class Spar3dEngine(AbstractEngine):
         latency = time.perf_counter() - t0
 
         tm = mesh_out[0] if isinstance(mesh_out, (list, tuple)) else mesh_out
+        tm.fix_normals()
         vcols = self._extract_spar3d_vertex_colors(tm)
 
         print(f"[SPAR3D] Inference done in {latency:.2f}s ({len(tm.vertices)} verts)")
