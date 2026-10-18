@@ -125,18 +125,21 @@ def load_gso_samples(
     obj_dirs = sorted([d for d in root.iterdir() if d.is_dir()])[:num_samples]
 
     for obj_dir in obj_dirs:
-        img_candidates = (
-            list((obj_dir / "thumbnails").glob("*.jpg"))
-            + list((obj_dir / "thumbnails").glob("*.png"))
-            + list((obj_dir / "images").glob("*.png"))
-            + list(obj_dir.glob("*.png"))
-            + list(obj_dir.glob("*.jpg"))
-        )
-        if not img_candidates:
-            continue
-
-        image_path = sorted(img_candidates)[0]
-        novel_views = sorted(img_candidates)[1:5]
+        if (obj_dir / "images" / "000.png").exists():
+            image_path = obj_dir / "images" / "000.png"
+            novel_views = [obj_dir / "images" / "001.png"] if (obj_dir / "images" / "001.png").exists() else []
+        else:
+            img_candidates = (
+                list((obj_dir / "images").glob("*.png"))
+                + list((obj_dir / "thumbnails").glob("*.jpg"))
+                + list((obj_dir / "thumbnails").glob("*.png"))
+                + list(obj_dir.glob("*.png"))
+                + list(obj_dir.glob("*.jpg"))
+            )
+            if not img_candidates:
+                continue
+            image_path = sorted(img_candidates)[0]
+            novel_views = sorted(img_candidates)[1:5]
 
         mesh_candidates = (
             list((obj_dir / "meshes").glob("*.obj"))
