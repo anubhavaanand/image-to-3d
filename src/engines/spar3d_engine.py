@@ -75,12 +75,25 @@ class Spar3dEngine(AbstractEngine):
         from spar3d.utils import foreground_crop
 
         print(f"[SPAR3D] Loading stabilityai/stable-point-aware-3d (low_vram_mode={self.low_vram_mode}) …")
-        self.model = SPAR3D.from_pretrained(
-            "stabilityai/stable-point-aware-3d",
-            config_name="config.yaml",
-            weight_name="model.safetensors",
-            low_vram_mode=self.low_vram_mode,
-        )
+        try:
+            self.model = SPAR3D.from_pretrained(
+                "stabilityai/stable-point-aware-3d",
+                config_name="config.yaml",
+                weight_name="model.safetensors",
+                low_vram_mode=self.low_vram_mode,
+            )
+        except Exception as e:
+            if "403" in str(e) or "GatedRepo" in type(e).__name__ or "restricted" in str(e):
+                print(f"[SPAR3D] stabilityai/stable-point-aware-3d gated access required ({e}).")
+                print("[SPAR3D] Falling back to verified public mirror zimengxiong/Modelr-SPAR3D …")
+                self.model = SPAR3D.from_pretrained(
+                    "zimengxiong/Modelr-SPAR3D",
+                    config_name="config.yaml",
+                    weight_name="model.safetensors",
+                    low_vram_mode=self.low_vram_mode,
+                )
+            else:
+                raise
         self.model.to(self.device).eval()
         self._foreground_crop = foreground_crop
         print("[SPAR3D] Model loaded.")
