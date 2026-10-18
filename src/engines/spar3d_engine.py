@@ -71,6 +71,41 @@ class Spar3dEngine(AbstractEngine):
                 tb_mod.Remover = _DummyRemover
                 sys.modules["transparent_background"] = tb_mod
 
+        # Compatibility shim for modern transformers where prune utils were removed
+        try:
+            import transformers.pytorch_utils as _tpu
+            if not hasattr(_tpu, "find_pruneable_heads_and_indices"):
+                def _find_pruneable_heads_and_indices(heads, n_heads, head_size, already_pruned_heads):
+                    heads = set(heads) - already_pruned_heads
+                    mask = torch.ones(n_heads, head_size)
+                    for head in heads:
+                        head = head - sum(1 if h < head else 0 for h in already_pruned_heads)
+                        mask[head] = 0
+                    mask = mask.view(-1).contiguous().eq(1)
+                    index = torch.arange(len(mask))[mask].long()
+                    return heads, index
+                _tpu.find_pruneable_heads_and_indices = _find_pruneable_heads_and_indices
+
+            if not hasattr(_tpu, "prune_linear_layer"):
+                def _prune_linear_layer(layer, index, dim=0):
+                    index = index.to(layer.weight.device)
+                    W = layer.weight.index_select(dim, index).clone().detach()
+                    b = (layer.bias.clone().detach() if dim == 1 else layer.bias[index].clone().detach()) if layer.bias is not None else None
+                    new_size = list(layer.weight.size())
+                    new_size[dim] = len(index)
+                    new_layer = torch.nn.Linear(new_size[1], new_size[0], bias=layer.bias is not None).to(layer.weight.device)
+                    new_layer.weight.requires_grad = False
+                    new_layer.weight.copy_(W.contiguous())
+                    new_layer.weight.requires_grad = True
+                    if layer.bias is not None:
+                        new_layer.bias.requires_grad = False
+                        new_layer.bias.copy_(b.contiguous())
+                        new_layer.bias.requires_grad = True
+                    return new_layer
+                _tpu.prune_linear_layer = _prune_linear_layer
+        except Exception as _e:
+            print(f"[SPAR3D] Warning applying transformers shim: {_e}")
+
         from spar3d.system import SPAR3D
         from spar3d.utils import foreground_crop
 
