@@ -48,12 +48,6 @@ class GSOSample:
 
 
 def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
-    """
-    Sample UV texture into per-vertex ColorVisuals.
-    If trimesh failed to load `mat.image` (e.g. GSO `materials/textures/texture.png`
-    relative path mismatch), explicitly locate `texture.png` on disk so GSO meshes
-    never fall back to flat grey.
-    """
     import trimesh
 
     vis = getattr(tm, "visual", None)
@@ -75,8 +69,7 @@ def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
 
     if img is None and mesh_path is not None:
         mp = Path(mesh_path)
-        search_roots = [mp.parent, mp.parent.parent]
-        for sr in search_roots:
+        for sr in [mp.parent, mp.parent.parent]:
             if not sr.exists():
                 continue
             for cand in (
@@ -86,7 +79,7 @@ def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
                 + list(sr.rglob("*.png"))
                 + list(sr.rglob("*.jpg"))
             ):
-                if "novel" not in cand.name and "000" not in cand.name and "001" not in cand.name and "input" not in cand.name:
+                if not any(k in cand.name for k in ("novel", "000", "001", "input")):
                     try:
                         img = Image.open(cand)
                         img.load()
@@ -311,7 +304,6 @@ def render_novel_view_same_bg(
 
         raw_v = np.asarray(mesh.vertices, dtype=np.float32)
         max_r = float(np.linalg.norm(raw_v - raw_v.mean(axis=0), axis=1).max()) if len(raw_v) > 0 else 1.0
-        # Always normalize if already_normalized is False OR if mesh is still in raw meters (max_r < 0.6)
         if not already_normalized or max_r < 0.6 or max_r > 1.6:
             verts, _, _ = _normalize_vertices_robust(raw_v)
         else:
@@ -432,7 +424,7 @@ class BenchmarkRunner:
             info = engine.get_engine_info()
             engine_name = info.get("name", engine.__class__.__name__)
             print(f"\n{'='*60}\n  Evaluating: {engine_name}\n{'='*60}")
-            if getattr(engine, 'model', None) is None and getattr(engine, 'pipeline', None) is None:
+            if getattr(engine, "model", None) is None and getattr(engine, "pipeline", None) is None:
                 engine.load_model()
 
             for idx, sample in enumerate(samples):
@@ -568,7 +560,7 @@ class BenchmarkRunner:
             except Exception:
                 pass
 
-            if hasattr(engine, 'unload_model'):
+            if hasattr(engine, "unload_model"):
                 engine.unload_model()
             gc.collect()
             if torch.cuda.is_available():

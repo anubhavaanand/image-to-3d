@@ -1,10 +1,11 @@
+import numpy as np
 from .chamfer_distance import compute_chamfer_distance
 from .f_score import compute_f_score
 from .psnr_lpips import compute_psnr, compute_lpips
-import numpy as np
 
 
 def normalize_point_cloud(points: np.ndarray) -> np.ndarray:
+    """Center point cloud and normalize by 99.5th-percentile radius to fit unit sphere."""
     pts = np.asarray(points, dtype=np.float32)
     if len(pts) == 0:
         return pts

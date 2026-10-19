@@ -1,27 +1,75 @@
 """
 SPAR3D Engine — audited wrapper for Stability-AI/stable-point-aware-3d (arXiv:2501.04689).
-
-Fixes applied from repo_4_spar3d.txt audit:
-1. Calls `spar3d.utils.foreground_crop(rgba, crop_ratio=1.3, newsize=(512, 512))`
-   before `model.run_image()` (matching run.py:128 and gradio_app.py:432).
-2. Uses `low_vram_mode=True` (~7 GB VRAM on T4 via 3-stage lazy module loading).
-3. Samples per-vertex colors from `PBRMaterial.baseColorTexture` using SPAR3D's
-   native top-left UV convention (`spar3d/models/mesh.py:297`), so `Mesh3D.vertex_colors`
-   are sharp and saturated.
 """
 
 from __future__ import annotations
 
 import sys
 import time
+import types
 from pathlib import Path
 from typing import Dict, Any
 
 import numpy as np
+import packaging
 import torch
 from PIL import Image
 
 from .base import AbstractEngine, ReconstructionResult, Mesh3D
+
+
+def _install_spar3d_compat_shims() -> None:
+    if "pkg_resources" not in sys.modules:
+        pkgr = types.ModuleType("pkg_resources")
+        pkgr.packaging = packaging
+        sys.modules["pkg_resources"] = pkgr
+    elif not hasattr(sys.modules["pkg_resources"], "packaging"):
+        sys.modules["pkg_resources"].packaging = packaging
+
+    try:
+        import transformers.pytorch_utils as _tpu
+        if not hasattr(_tpu, "find_pruneable_heads_and_indices"):
+            def _find_pruneable_heads_and_indices(heads, n_heads, head_size, already_pruned_heads):
+                heads = set(heads) - already_pruned_heads
+                mask = torch.ones(n_heads, head_size)
+                for head in heads:
+                    head = head - sum(1 if h < head else 0 for h in already_pruned_heads)
+                    mask[head] = 0
+                mask = mask.view(-1).contiguous().eq(1)
+                index = torch.arange(len(mask))[mask].long()
+                return heads, index
+            _tpu.find_pruneable_heads_and_indices = _find_pruneable_heads_and_indices
+
+        if not hasattr(_tpu, "prune_linear_layer"):
+            def _prune_linear_layer(layer, index, dim=0):
+                index = index.to(layer.weight.device)
+                W = layer.weight.index_select(dim, index).clone().detach()
+                b = (layer.bias.clone().detach() if dim == 1 else layer.bias[index].clone().detach()) if layer.bias is not None else None
+                new_size = list(layer.weight.size())
+                new_size[dim] = len(index)
+                new_layer = torch.nn.Linear(new_size[1], new_size[0], bias=layer.bias is not None).to(layer.weight.device)
+                new_layer.weight.requires_grad = False
+                new_layer.weight.copy_(W.contiguous())
+                new_layer.weight.requires_grad = True
+                if layer.bias is not None:
+                    new_layer.bias.requires_grad = False
+                    new_layer.bias.copy_(b.contiguous())
+                    new_layer.bias.requires_grad = True
+                return new_layer
+            _tpu.prune_linear_layer = _prune_linear_layer
+    except Exception:
+        pass
+
+    if "transparent_background" not in sys.modules:
+        try:
+            import transparent_background  # noqa: F401
+        except ImportError:
+            tb_mod = types.ModuleType("transparent_background")
+            class _DummyRemover:
+                def __init__(self, *a, **kw): pass
+                def process(self, img, *a, **kw): return img.convert("RGBA")
+            tb_mod.Remover = _DummyRemover
+            sys.modules["transparent_background"] = tb_mod
 
 
 class Spar3dEngine(AbstractEngine):
@@ -53,71 +101,16 @@ class Spar3dEngine(AbstractEngine):
         )
 
     def load_model(self) -> None:
-        import types, packaging
-        if 'pkg_resources' not in sys.modules:
-            _pkgr = types.ModuleType('pkg_resources')
-            _pkgr.packaging = packaging
-            sys.modules['pkg_resources'] = _pkgr
-        else:
-            sys.modules['pkg_resources'].packaging = packaging
+        _install_spar3d_compat_shims()
         repo_dir = self._locate_repo()
-        for _p in [repo_dir, Path('/kaggle/working/CLIP'), Path('/kaggle/working/AlphaCLIP')]:
-            if _p.is_dir() and str(_p) not in sys.path:
-                sys.path.insert(0, str(_p))
-
-        # Provide a lightweight stub if transparent_background is not installed
-        # (since our BackgroundRemover already supplies RGBA masks)
-        if "transparent_background" not in sys.modules:
-            try:
-                import transparent_background  # noqa: F401
-            except ImportError:
-                import types
-                tb_mod = types.ModuleType("transparent_background")
-                class _DummyRemover:
-                    def __init__(self, *a, **kw): pass
-                    def process(self, img, *a, **kw): return img.convert("RGBA")
-                tb_mod.Remover = _DummyRemover
-                sys.modules["transparent_background"] = tb_mod
-
-        # Compatibility shim for modern transformers where prune utils were removed
-        try:
-            import transformers.pytorch_utils as _tpu
-            if not hasattr(_tpu, "find_pruneable_heads_and_indices"):
-                def _find_pruneable_heads_and_indices(heads, n_heads, head_size, already_pruned_heads):
-                    heads = set(heads) - already_pruned_heads
-                    mask = torch.ones(n_heads, head_size)
-                    for head in heads:
-                        head = head - sum(1 if h < head else 0 for h in already_pruned_heads)
-                        mask[head] = 0
-                    mask = mask.view(-1).contiguous().eq(1)
-                    index = torch.arange(len(mask))[mask].long()
-                    return heads, index
-                _tpu.find_pruneable_heads_and_indices = _find_pruneable_heads_and_indices
-
-            if not hasattr(_tpu, "prune_linear_layer"):
-                def _prune_linear_layer(layer, index, dim=0):
-                    index = index.to(layer.weight.device)
-                    W = layer.weight.index_select(dim, index).clone().detach()
-                    b = (layer.bias.clone().detach() if dim == 1 else layer.bias[index].clone().detach()) if layer.bias is not None else None
-                    new_size = list(layer.weight.size())
-                    new_size[dim] = len(index)
-                    new_layer = torch.nn.Linear(new_size[1], new_size[0], bias=layer.bias is not None).to(layer.weight.device)
-                    new_layer.weight.requires_grad = False
-                    new_layer.weight.copy_(W.contiguous())
-                    new_layer.weight.requires_grad = True
-                    if layer.bias is not None:
-                        new_layer.bias.requires_grad = False
-                        new_layer.bias.copy_(b.contiguous())
-                        new_layer.bias.requires_grad = True
-                    return new_layer
-                _tpu.prune_linear_layer = _prune_linear_layer
-        except Exception as _e:
-            print(f"[SPAR3D] Warning applying transformers shim: {_e}")
+        for p in [repo_dir, Path("/kaggle/working/CLIP"), Path("/kaggle/working/AlphaCLIP")]:
+            if p.is_dir() and str(p) not in sys.path:
+                sys.path.insert(0, str(p))
 
         from spar3d.system import SPAR3D
         from spar3d.utils import foreground_crop
 
-        print(f"[SPAR3D] Loading stabilityai/stable-point-aware-3d (low_vram_mode={self.low_vram_mode}) …")
+        print(f"[SPAR3D] Loading model (low_vram_mode={self.low_vram_mode}) …")
         try:
             self.model = SPAR3D.from_pretrained(
                 "stabilityai/stable-point-aware-3d",
@@ -126,29 +119,19 @@ class Spar3dEngine(AbstractEngine):
                 low_vram_mode=self.low_vram_mode,
             )
         except Exception as e:
-            if "403" in str(e) or "GatedRepo" in type(e).__name__ or "restricted" in str(e):
-                print(f"[SPAR3D] stabilityai/stable-point-aware-3d gated access required ({e}).")
-                print("[SPAR3D] Falling back to verified public mirror zimengxiong/Modelr-SPAR3D …")
-                self.model = SPAR3D.from_pretrained(
-                    "zimengxiong/Modelr-SPAR3D",
-                    config_name="config.yaml",
-                    weight_name="model.safetensors",
-                    low_vram_mode=self.low_vram_mode,
-                )
-            else:
-                raise
+            print(f"[SPAR3D] Primary repo gated ({e}); falling back to public mirror zimengxiong/Modelr-SPAR3D …")
+            self.model = SPAR3D.from_pretrained(
+                "zimengxiong/Modelr-SPAR3D",
+                config_name="config.yaml",
+                weight_name="model.safetensors",
+                low_vram_mode=self.low_vram_mode,
+            )
         self.model.to(self.device).eval()
         self._foreground_crop = foreground_crop
         print("[SPAR3D] Model loaded.")
 
     @staticmethod
     def _extract_spar3d_vertex_colors(tm) -> np.ndarray | None:
-        """
-        Extract per-vertex RGB colors in [0, 1] from SPAR3D's TextureVisuals
-        (PBRMaterial.baseColorTexture). Note: in spar3d/models/mesh.py:297,
-        SPAR3D does NOT flip v to 1-v when baking `baseColorTexture`, so row
-        index y is `v * (H - 1)` directly.
-        """
         try:
             uv = getattr(tm.visual, "uv", None)
             mat = getattr(tm.visual, "material", None)
@@ -183,7 +166,6 @@ class Spar3dEngine(AbstractEngine):
                 arr[..., 3] = non_white.astype(np.uint8) * 255
                 rgba = Image.fromarray(arr, mode="RGBA")
 
-        # Crop foreground with SPAR3D's official 1.3 padding ratio (run.py:128)
         try:
             rgba = self._foreground_crop(
                 rgba, crop_ratio=self.foreground_ratio, newsize=(512, 512)
@@ -203,8 +185,11 @@ class Spar3dEngine(AbstractEngine):
         latency = time.perf_counter() - t0
 
         tm = mesh_out[0] if isinstance(mesh_out, (list, tuple)) else mesh_out
-        tm.fix_normals()
         vcols = self._extract_spar3d_vertex_colors(tm)
+        try:
+            tm.fix_normals()
+        except Exception:
+            pass
 
         print(f"[SPAR3D] Inference done in {latency:.2f}s ({len(tm.vertices)} verts)")
 
