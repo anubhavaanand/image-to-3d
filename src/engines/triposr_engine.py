@@ -40,7 +40,7 @@ def _skimage_mc_func(level, iso=0.0):
     vol = level.detach().cpu().numpy().astype(np.float32)
     try:
         v, f, _, _ = measure.marching_cubes(vol, float(iso))
-        v = np.ascontiguousarray(v, dtype=np.float32)
+        v = np.ascontiguousarray(v[:, [2, 1, 0]], dtype=np.float32)
         f = np.ascontiguousarray(f, dtype=np.int64)
     except Exception:
         return (

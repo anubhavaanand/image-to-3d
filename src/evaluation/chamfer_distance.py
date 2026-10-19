@@ -1,38 +1,21 @@
 import numpy as np
 from scipy.spatial import cKDTree
 
-def compute_chamfer_distance(pc1: np.ndarray, pc2: np.ndarray, squared: bool = True) -> float:
+
+def compute_chamfer_distance(pc1: np.ndarray, pc2: np.ndarray, squared: bool = False) -> float:
     """
-    Computes the Chamfer Distance between two point clouds.
-    
-    Args:
-        pc1, pc2: Point clouds of shape (N, 3) and (M, 3)
-        squared: If True, returns squared Chamfer distance (sum of squared distances).
-                 If False, returns symmetric mean-distance Chamfer (mean of distances).
-                 
-    Returns:
-        float: Chamfer distance
-        
-    Note:
-        - squared=True returns the standard squared Chamfer (used in many ML papers)
-        - squared=False returns symmetric mean-distance Chamfer (more interpretable, 
-          matches TripoSR paper's CD convention)
+    Computes symmetric mean L2 Chamfer Distance between two point clouds (pc1, pc2).
     """
-    tree1 = cKDTree(pc1)
-    tree2 = cKDTree(pc2)
-    
-    d1, _ = tree1.query(pc2)
-    d2, _ = tree2.query(pc1)
-    
+    p1 = np.asarray(pc1, dtype=np.float32)
+    p2 = np.asarray(pc2, dtype=np.float32)
+    tree1 = cKDTree(p1)
+    tree2 = cKDTree(p2)
+    d1, _ = tree1.query(p2, k=1, workers=-1)
+    d2, _ = tree2.query(p1, k=1, workers=-1)
     if squared:
-        return np.mean(d1**2) + np.mean(d2**2)
-    else:
-        # Symmetric mean-distance Chamfer (more interpretable, matches TripoSR paper)
-        return np.mean(d1) + np.mean(d2)
+        return float(np.mean(d1 ** 2) + np.mean(d2 ** 2))
+    return float(np.mean(d1) + np.mean(d2))
+
 
 def compute_chamfer_distance_symmetric(pc1: np.ndarray, pc2: np.ndarray) -> float:
-    """
-    Convenience wrapper for symmetric mean-distance Chamfer Distance.
-    Matches TripoSR paper convention.
-    """
     return compute_chamfer_distance(pc1, pc2, squared=False)

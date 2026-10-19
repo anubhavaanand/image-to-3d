@@ -265,10 +265,9 @@ def align_mesh_to_gt(
     aligned_mesh = Mesh3D(
         vertices=aligned_verts.astype(np.float32),
         faces=mesh.faces,
-        vertex_normals=None,
         vertex_colors=mesh.vertex_colors,
-        uvs=mesh.uvs,
-        texture_image=mesh.texture_image,
+        uv_coords=getattr(mesh, "uv_coords", None),
+        texture_map=getattr(mesh, "texture_map", None),
     )
     return aligned_mesh, aligned_pts.astype(np.float32)
 
@@ -433,7 +432,8 @@ class BenchmarkRunner:
             info = engine.get_engine_info()
             engine_name = info.get("name", engine.__class__.__name__)
             print(f"\n{'='*60}\n  Evaluating: {engine_name}\n{'='*60}")
-            engine.load_model()
+            if getattr(engine, 'model', None) is None and getattr(engine, 'pipeline', None) is None:
+                engine.load_model()
 
             for idx, sample in enumerate(samples):
                 print(
@@ -568,7 +568,8 @@ class BenchmarkRunner:
             except Exception:
                 pass
 
-            engine.unload_model()
+            if hasattr(engine, 'unload_model'):
+                engine.unload_model()
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
