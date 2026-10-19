@@ -6,7 +6,6 @@ _lpips_vgg = None
 
 
 def compute_psnr(img1: np.ndarray, img2: np.ndarray) -> float:
-    """Computes PSNR (dB) between two RGB images in [0, 255]."""
     a = np.asarray(img1, dtype=np.float32)[..., :3]
     b = np.asarray(img2, dtype=np.float32)[..., :3]
     mse = float(np.mean((a - b) ** 2))
@@ -29,7 +28,6 @@ def _to_lpips_tensor(img) -> torch.Tensor:
 
 
 def compute_lpips(img1, img2) -> float:
-    """Computes VGG LPIPS perceptual distance between two images (NumPy HWC or Torch NCHW)."""
     global _lpips_vgg
     if _lpips_vgg is None:
         _lpips_vgg = lpips.LPIPS(net="vgg").eval()

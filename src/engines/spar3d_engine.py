@@ -53,9 +53,17 @@ class Spar3dEngine(AbstractEngine):
         )
 
     def load_model(self) -> None:
+        import types, packaging
+        if 'pkg_resources' not in sys.modules:
+            _pkgr = types.ModuleType('pkg_resources')
+            _pkgr.packaging = packaging
+            sys.modules['pkg_resources'] = _pkgr
+        else:
+            sys.modules['pkg_resources'].packaging = packaging
         repo_dir = self._locate_repo()
-        if str(repo_dir) not in sys.path:
-            sys.path.insert(0, str(repo_dir))
+        for _p in [repo_dir, Path('/kaggle/working/CLIP'), Path('/kaggle/working/AlphaCLIP')]:
+            if _p.is_dir() and str(_p) not in sys.path:
+                sys.path.insert(0, str(_p))
 
         # Provide a lightweight stub if transparent_background is not installed
         # (since our BackgroundRemover already supplies RGBA masks)

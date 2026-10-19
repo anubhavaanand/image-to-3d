@@ -3,9 +3,6 @@ from scipy.spatial import cKDTree
 
 
 def compute_chamfer_distance(pc1: np.ndarray, pc2: np.ndarray, squared: bool = False) -> float:
-    """
-    Computes symmetric mean L2 Chamfer Distance between two point clouds (pc1, pc2).
-    """
     p1 = np.asarray(pc1, dtype=np.float32)
     p2 = np.asarray(pc2, dtype=np.float32)
     tree1 = cKDTree(p1)

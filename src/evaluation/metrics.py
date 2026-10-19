@@ -5,7 +5,6 @@ import numpy as np
 
 
 def normalize_point_cloud(points: np.ndarray) -> np.ndarray:
-    """Center point cloud and normalize by 99.5th-percentile radius to fit unit sphere."""
     pts = np.asarray(points, dtype=np.float32)
     if len(pts) == 0:
         return pts
