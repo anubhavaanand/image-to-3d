@@ -1,17 +1,5 @@
 """
 SPAR3D Engine — audited wrapper for Stability-AI/stable-point-aware-3d (arXiv:2501.04689).
-
-Kaggle/transformers-v5 compatibility notes:
-- transformers v5 removed PreTrainedModel.get_head_mask (and its private
-  _convert_head_mask_to_5d helper); SPAR3D's DINOv2 tokenizer still calls it.
-  The shim below restores the transformers-4.x behaviour and is bound onto both
-  PreTrainedModel and Dinov2Model (validated live on Kaggle, 2026-10-19/20).
-- Vertex colors are extracted from SPAR3D's baked UV texture. DMTet vertices
-  without a valid UV (NaN / atlas padding at the (0,0) origin) previously
-  point-sampled the black atlas padding and produced large pure-black patches
-  (measured 38-66% of vertices on real T4 runs, 2026-10-19). The extractor now
-  samples each face at its UV-triangle centroid and propagates colors
-  topologically to vertices without valid UV coverage.
 """
 
 from __future__ import annotations
@@ -26,6 +14,7 @@ import numpy as np
 import packaging
 import torch
 from PIL import Image
+from scipy.spatial import cKDTree
 
 from .base import AbstractEngine, ReconstructionResult, Mesh3D
 
@@ -69,31 +58,18 @@ def _install_spar3d_compat_shims() -> None:
                     new_layer.bias.requires_grad = True
                 return new_layer
             _tpu.prune_linear_layer = _prune_linear_layer
-    except Exception:
-        pass
 
-    try:
         from transformers.modeling_utils import PreTrainedModel
-        if not hasattr(PreTrainedModel, "_spar3d_head_mask_shim"):
-            def _compat_get_head_mask(self, head_mask=None, num_hidden_layers=12, is_attention_chunked=False):
-                if head_mask is None:
-                    return [None] * num_hidden_layers
-                if head_mask.dim() == 1:
-                    head_mask = head_mask.unsqueeze(0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-                    head_mask = head_mask.expand(num_hidden_layers, -1, -1, -1, -1)
-                elif head_mask.dim() == 2:
-                    head_mask = head_mask.unsqueeze(-1).unsqueeze(-1)
-                    head_mask = head_mask.expand(head_mask.size()[0], -1, -1, -1, -1)
-                assert head_mask.dim() == 5, f"head_mask.dim != 5, instead {head_mask.dim()}"
-                return head_mask.to(dtype=self.dtype, device=self.device, non_blocking=True)
-
-            PreTrainedModel._spar3d_head_mask_shim = _compat_get_head_mask
-            PreTrainedModel.get_head_mask = _compat_get_head_mask
-            try:
-                from transformers.models.dinov2.modeling_dinov2 import Dinov2Model
-                Dinov2Model.get_head_mask = _compat_get_head_mask
-            except Exception:
-                pass
+        if not hasattr(PreTrainedModel, "get_head_mask"):
+            def _get_head_mask(self, head_mask, num_hidden_layers, is_attention_chunked=False):
+                if head_mask is not None:
+                    head_mask = self._convert_head_mask_to_5d(head_mask, num_hidden_layers)
+                    if is_attention_chunked is True:
+                        head_mask = head_mask.unsqueeze(-1)
+                else:
+                    head_mask = [None] * num_hidden_layers
+                return head_mask
+            PreTrainedModel.get_head_mask = _get_head_mask
     except Exception:
         pass
 
@@ -107,93 +83,6 @@ def _install_spar3d_compat_shims() -> None:
                 def process(self, img, *a, **kw): return img.convert("RGBA")
             tb_mod.Remover = _DummyRemover
             sys.modules["transparent_background"] = tb_mod
-
-
-def _extract_vertex_colors_from_texture(tm):
-    """Sample a textured trimesh (SPAR3D output) into per-vertex colors.
-
-    Robust against DMTet vertices with missing/NaN UVs:
-
-    1. For every face whose three UVs are finite, sample the texture at the
-       UV-triangle *centroid* (nearest texel, top-left origin = glTF
-       convention used by SPAR3D's texture baker) and accumulate the color
-       onto the face's three vertices.
-    2. Average accumulated colors per vertex.
-    3. Vertices that received no valid face sample inherit the mean of their
-       colored ring neighbours (up to 4 propagation hops); any stragglers get
-       the mesh-wide median color.
-
-    Returns float32 (N, 3) in [0, 1], or None when no texture is available.
-    """
-    try:
-        uv = getattr(tm.visual, "uv", None)
-        mat = getattr(tm.visual, "material", None)
-        if uv is None or mat is None:
-            return None
-        tex_img = getattr(mat, "baseColorTexture", None) or getattr(mat, "image", None)
-        if tex_img is None:
-            return None
-        rgb = np.asarray(tex_img.convert("RGB"), dtype=np.float32) / 255.0
-        h, w = rgb.shape[:2]
-        faces = np.asarray(tm.faces, dtype=np.int64)
-
-        uv = np.asarray(uv, dtype=np.float64)
-        fu = uv[faces]                                # (F, 3, 2)
-        valid_mask = np.isfinite(fu).all(axis=(1, 2))
-
-        cu = np.where(valid_mask, fu[..., 0].mean(axis=1), 0.0)
-        cv = np.where(valid_mask, fu[..., 1].mean(axis=1), 0.0)
-        xf = np.clip(np.round(cu * (w - 1)).astype(np.int64), 0, w - 1)
-        yf = np.clip(np.round(cv * (h - 1)).astype(np.int64), 0, h - 1)
-        fcol = rgb[yf, xf]                            # (F, 3)
-
-        n_v = len(tm.vertices)
-        acc = np.zeros((n_v, 3), dtype=np.float64)
-        cnt = np.zeros(n_v, dtype=np.float64)
-        vf = faces[valid_mask]
-        if len(vf):
-            np.add.at(cnt, vf.reshape(-1), 1.0)
-            np.add.at(acc, vf.reshape(-1), fcol[valid_mask].repeat(3, axis=0))
-
-        colored = cnt > 0
-        vcol = acc / np.maximum(cnt, 1.0)[:, None]
-        face_cov = float(colored.mean())
-
-        # Topological propagation for vertices without valid UV coverage.
-        a = faces[:, [0, 1, 2, 0, 1, 2]]
-        b = faces[:, [1, 2, 0, 2, 0, 1]]              # all 6 directed edges
-        propagated = 0.0
-        for _ in range(4):
-            need = ~colored
-            if not need.any():
-                break
-            m = need[a] & colored[b]
-            if not m.any():
-                break
-            c = np.zeros(n_v, dtype=np.float64)
-            tot = np.zeros((n_v, 3), dtype=np.float64)
-            np.add.at(c, a[m], 1.0)
-            np.add.at(tot, a[m], vcol[b[m]])
-            got = c > 0
-            vcol[got] = tot[got] / c[got, None]
-            colored = colored | got
-        prop_mask = (cnt == 0) & colored
-        n_prop = int(prop_mask.sum())
-
-        rem = ~colored
-        if rem.any() and colored.any():
-            vcol[rem] = np.median(vcol[colored], axis=0)
-
-        lum = vcol.mean(axis=1)
-        black_frac = float((lum < 0.02).mean())
-        print(
-            f"[SPAR3D] vertex colors: face-sampled {face_cov:.0%} | "
-            f"propagated {n_prop} verts | black_frac {black_frac:.1%}"
-        )
-        return np.clip(vcol, 0.0, 1.0).astype(np.float32)
-    except Exception as e:
-        print(f"[SPAR3D] Vertex color extraction warning: {e}")
-        return None
 
 
 class Spar3dEngine(AbstractEngine):
@@ -254,6 +143,53 @@ class Spar3dEngine(AbstractEngine):
         self._foreground_crop = foreground_crop
         print("[SPAR3D] Model loaded.")
 
+    @staticmethod
+    def _extract_spar3d_vertex_colors(tm, verts: np.ndarray) -> np.ndarray | None:
+        """
+        Extract per-vertex RGB colors from SPAR3D's baked PBRMaterial.baseColorTexture
+        and repair any unbaked black UV-seam texels via 3D k-NN interpolation.
+        """
+        try:
+            vis = getattr(tm, "visual", None)
+            if vis is None:
+                return None
+            uv = getattr(vis, "uv", None)
+            mat = getattr(vis, "material", None)
+            tex_img = None
+            if mat is not None:
+                tex_img = getattr(mat, "baseColorTexture", None) or getattr(mat, "image", None)
+
+            vcols = None
+            if uv is not None and tex_img is not None and len(uv) == len(verts):
+                rgb = np.asarray(tex_img.convert("RGB"), dtype=np.float32) / 255.0
+                h, w = rgb.shape[:2]
+                u = np.clip(np.nan_to_num(np.asarray(uv[:, 0], dtype=np.float64), nan=0.5), 0.0, 1.0)
+                v = np.clip(np.nan_to_num(np.asarray(uv[:, 1], dtype=np.float64), nan=0.5), 0.0, 1.0)
+                x = np.clip(np.round(u * (w - 1)).astype(int), 0, w - 1)
+                y = np.clip(np.round(v * (h - 1)).astype(int), 0, h - 1)
+                vcols = np.clip(rgb[y, x], 0.0, 1.0).astype(np.float32)
+            else:
+                vc_vis = vis.to_color()
+                if getattr(vc_vis, "vertex_colors", None) is not None:
+                    vc = np.asarray(vc_vis.vertex_colors, dtype=np.float32)
+                    if len(vc) == len(verts):
+                        vcols = vc[:, :3] / (255.0 if vc.max() > 1.05 else 1.0)
+
+            if vcols is not None and len(vcols) == len(verts):
+                # Repair unbaked black UV chart padding texels (brightness < 0.04) via 3D k-NN
+                valid = vcols.max(axis=-1) >= 0.04
+                if valid.any() and (~valid).any():
+                    tree = cKDTree(verts[valid])
+                    _, idx = tree.query(verts[~valid], k=min(4, int(valid.sum())))
+                    if idx.ndim == 1:
+                        vcols[~valid] = vcols[valid][idx]
+                    else:
+                        vcols[~valid] = vcols[valid][idx].mean(axis=1)
+            return vcols
+        except Exception as e:
+            print(f"[SPAR3D] Vertex color extraction warning: {e}")
+            return None
+
     @torch.no_grad()
     def predict(self, image: Image.Image) -> ReconstructionResult:
         if self.model is None:
@@ -288,17 +224,25 @@ class Spar3dEngine(AbstractEngine):
         latency = time.perf_counter() - t0
 
         tm = mesh_out[0] if isinstance(mesh_out, (list, tuple)) else mesh_out
-        vcols = _extract_vertex_colors_from_texture(tm)
+        # Undo spar3d/system.py:917's `tmesh.invert()` so triangle winding & normals face OUTWARD!
         try:
-            tm.fix_normals()
+            tm.invert()
         except Exception:
             pass
 
-        print(f"[SPAR3D] Inference done in {latency:.2f}s ({len(tm.vertices)} verts)")
+        verts = np.asarray(tm.vertices, dtype=np.float32)
+        faces = np.asarray(tm.faces, dtype=np.int64)
+        vcols = self._extract_spar3d_vertex_colors(tm, verts)
+
+        # Rotate from SPAR3D's Z-up coordinate system to OpenGL Y-up via Rx(-90)
+        rx_neg90 = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]], dtype=np.float32)
+        verts = verts @ rx_neg90.T
+
+        print(f"[SPAR3D] Inference done in {latency:.2f}s ({len(verts)} verts)")
 
         mesh = Mesh3D(
-            vertices=np.asarray(tm.vertices, dtype=np.float32),
-            faces=np.asarray(tm.faces, dtype=np.int64),
+            vertices=verts,
+            faces=faces,
             vertex_colors=vcols,
         )
         torch.cuda.empty_cache()

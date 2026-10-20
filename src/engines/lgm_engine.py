@@ -27,6 +27,32 @@ from huggingface_hub import hf_hub_download
 from .base import AbstractEngine, ReconstructionResult, Mesh3D, GaussianCloud
 
 
+def _install_lgm_xformers_shim() -> None:
+    try:
+        import xformers.ops  # noqa: F401
+        return
+    except Exception:
+        pass
+    import types
+    import torch.nn.functional as _F
+
+    def _memory_efficient_attention(q, k, v, attn_bias=None, op=None, **_kw):
+        if q.ndim == 3:
+            out = _F.scaled_dot_product_attention(
+                q.unsqueeze(1), k.unsqueeze(1), v.unsqueeze(1), attn_mask=attn_bias
+            )
+            return out.squeeze(1)
+        return _F.scaled_dot_product_attention(q, k, v, attn_mask=attn_bias)
+
+    _xm = types.ModuleType("xformers")
+    _xops = types.ModuleType("xformers.ops")
+    _xops.memory_efficient_attention = _memory_efficient_attention
+    _xm.ops = _xops
+    sys.modules["xformers"] = _xm
+    sys.modules["xformers.ops"] = _xops
+    print("[LGM] Installed PyTorch SDPA shim for xformers.ops.memory_efficient_attention ✅")
+
+
 class LGMEngine(AbstractEngine):
     def __init__(
         self,
@@ -56,6 +82,7 @@ class LGMEngine(AbstractEngine):
                     break
 
     def load_model(self, big: bool = True) -> None:
+        _install_lgm_xformers_shim()
         self._ensure_lgm_imports()
         from diffusers import DDIMScheduler
         from mvdream.pipeline_mvdream import MVDreamPipeline
