@@ -44,10 +44,16 @@ def _install_lgm_xformers_shim() -> None:
             return out.squeeze(1)
         return _F.scaled_dot_product_attention(q, k, v, attn_mask=attn_bias)
 
+    import importlib.machinery as _machinery
     _xm = types.ModuleType("xformers")
     _xops = types.ModuleType("xformers.ops")
     _xops.memory_efficient_attention = _memory_efficient_attention
     _xm.ops = _xops
+    # diffusers calls importlib.util.find_spec("xformers") at import time, which
+    # raises ValueError("xformers.__spec__ is None") on a fake module without __spec__.
+    _xm.__spec__ = _machinery.ModuleSpec("xformers", None, is_package=True)
+    _xm.__path__ = []
+    _xops.__spec__ = _machinery.ModuleSpec("xformers.ops", None)
     sys.modules["xformers"] = _xm
     sys.modules["xformers.ops"] = _xops
     print("[LGM] Installed PyTorch SDPA shim for xformers.ops.memory_efficient_attention ✅")
