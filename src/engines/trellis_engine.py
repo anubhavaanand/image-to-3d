@@ -243,10 +243,7 @@ class TrellisEngine(AbstractEngine):
                         w = (gs_opa[idx] ** 2) / (dists ** 2 + 1e-6)
                         w /= w.sum(axis=1, keepdims=True)
                         gs_vcols = (gs_rgb[idx] * w[..., None]).sum(axis=1).astype(np.float32)
-                    if vcols is not None and len(vcols) == len(gs_vcols):
-                        vcols = np.clip(0.75 * gs_vcols + 0.25 * vcols, 0.0, 1.0).astype(np.float32)
-                    else:
-                        vcols = np.clip(gs_vcols, 0.0, 1.0).astype(np.float32)
+                    vcols = np.clip(gs_vcols, 0.0, 1.0).astype(np.float32)
                 except Exception as gce:
                     print(f"[TRELLIS] GS color transfer warning: {gce}")
 

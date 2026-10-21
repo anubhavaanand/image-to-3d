@@ -48,26 +48,15 @@ class GSOSample:
     gt_colors: Optional[np.ndarray] = None
 
 
-def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
-    import trimesh
-
+def _find_gso_texture_image(tm, mesh_path: Optional[str | Path] = None) -> Optional[Image.Image]:
     vis = getattr(tm, "visual", None)
-    if vis is None:
-        return None
-    if getattr(vis, "kind", None) == "vertex" and getattr(vis, "vertex_colors", None) is not None:
-        return vis
-
-    uv = getattr(vis, "uv", None)
-    mat = getattr(vis, "material", None)
+    mat = getattr(vis, "material", None) if vis is not None else None
     img = None
-    is_spar3d_top_left = False
     if mat is not None:
         if getattr(mat, "image", None) is not None:
             img = mat.image
         elif getattr(mat, "baseColorTexture", None) is not None:
             img = mat.baseColorTexture
-            # SPAR3D's baker_kernel.cu also uses standard OpenGL bottom-left UV origin (v = 1 - row/height).
-            is_spar3d_top_left = False
 
     if img is None and mesh_path is not None:
         mp = Path(mesh_path)
@@ -90,18 +79,42 @@ def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
                         pass
             if img is not None:
                 break
+    return img
+
+
+def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
+    import trimesh
+
+    vis = getattr(tm, "visual", None)
+    if vis is None:
+        return None
+    if getattr(vis, "kind", None) == "vertex" and getattr(vis, "vertex_colors", None) is not None:
+        return vis
+
+    uv = getattr(vis, "uv", None)
+    img = _find_gso_texture_image(tm, mesh_path=mesh_path)
 
     if uv is None or len(uv) != len(tm.vertices) or img is None:
         return tm.visual.to_color()
 
-    im = np.asarray(img.convert("RGBA"))
+    im = np.asarray(img.convert("RGBA"), dtype=np.float32)
     h, w = im.shape[:2]
     u = np.clip(np.nan_to_num(uv[:, 0], nan=0.5), 0.0, 1.0)
     v = np.clip(np.nan_to_num(uv[:, 1], nan=0.5), 0.0, 1.0)
-    x = np.clip((u * (w - 1)).round().astype(int), 0, w - 1)
-    y_norm = v if is_spar3d_top_left else (1.0 - v)
-    y = np.clip((y_norm * (h - 1)).round().astype(int), 0, h - 1)
-    return trimesh.visual.ColorVisuals(mesh=tm, vertex_colors=im[y, x])
+    fx = u * (w - 1)
+    fy = (1.0 - v) * (h - 1)
+    x0 = np.clip(np.floor(fx).astype(np.int32), 0, w - 1)
+    x1 = np.clip(x0 + 1, 0, w - 1)
+    y0 = np.clip(np.floor(fy).astype(np.int32), 0, h - 1)
+    y1 = np.clip(y0 + 1, 0, h - 1)
+    wx = (fx - x0)[..., None]
+    wy = (fy - y0)[..., None]
+    c00 = im[y0, x0]
+    c10 = im[y0, x1]
+    c01 = im[y1, x0]
+    c11 = im[y1, x1]
+    c = (1.0 - wx) * (1.0 - wy) * c00 + wx * (1.0 - wy) * c10 + (1.0 - wx) * wy * c01 + wx * wy * c11
+    return trimesh.visual.ColorVisuals(mesh=tm, vertex_colors=np.clip(c.round(), 0, 255).astype(np.uint8))
 
 
 def load_gso_samples(
@@ -423,20 +436,21 @@ def render_novel_view_same_bg(
         else:
             verts = raw_v
 
-        vcols = None
+        vc_lin = None
         if mesh.vertex_colors is not None and len(mesh.vertex_colors) == len(verts):
-            vc = np.asarray(mesh.vertex_colors, dtype=np.float32)
-            if vc.max() <= 1.05:
-                vc = np.clip(vc * 255.0, 0.0, 255.0)
-            vcols = np.clip(vc, 0.0, 255.0).astype(np.uint8)
-            if vcols.shape[1] == 3:
-                alpha = np.full((len(vcols), 1), 255, dtype=np.uint8)
-                vcols = np.concatenate([vcols, alpha], axis=1)
+            vc = np.asarray(mesh.vertex_colors, dtype=np.float32)[:, :3]
+            if vc.max() > 1.05:
+                vc = vc / 255.0
+            vc_srgb = np.clip(vc, 0.0, 1.0)
+            # pyrender's mesh.frag applies srgb_to_linear (pow(c, 2.2)) to base_color_texture
+            # but NOT to vertex colors (color_0), and then applies pow(color, 1/2.2) at output.
+            # Pre-converting sRGB vertex colors to linear RGB via pow(c, 2.2) eliminates the
+            # double-gamma washout and matches the UV-texture shading curve identically.
+            vc_lin = np.power(vc_srgb, 2.2).astype(np.float32)
 
         tm = trimesh.Trimesh(
             vertices=verts,
             faces=mesh.faces,
-            vertex_colors=vcols,
             process=False,
         )
         try:
@@ -444,11 +458,22 @@ def render_novel_view_same_bg(
         except Exception:
             pass
 
+        pm = pyrender.Mesh.from_trimesh(tm, smooth=False)
+        for p in pm.primitives:
+            if vc_lin is not None and len(tm.faces) > 0:
+                p.color_0 = vc_lin[tm.faces].reshape((-1, 3))
+            if p.material is not None:
+                p.material.baseColorFactor = np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float32)
+                p.material.metallicFactor = 0.0
+                p.material.roughnessFactor = 1.0
+                p.material.alphaMode = "OPAQUE"
+                p.material.doubleSided = True
+
         scene = pyrender.Scene(
             ambient_light=np.array([0.55, 0.55, 0.55]),
             bg_color=np.array([1.0, 1.0, 1.0, 1.0] if white_bg else [0.0, 0.0, 0.0, 1.0]),
         )
-        scene.add(pyrender.Mesh.from_trimesh(tm, smooth=False))
+        scene.add(pm)
 
         camera_pose = make_camera_pose(azimuth_deg, elevation_deg, distance)
         camera = pyrender.PerspectiveCamera(yfov=np.radians(49.1))
@@ -469,6 +494,97 @@ def render_novel_view_same_bg(
         return color
     except Exception as e:
         print(f"[Renderer] pyrender failed ({e}). Skipping 2D perceptual metrics.")
+        return None
+
+
+def render_gso_mesh_view(
+    mesh_path: str | Path,
+    azimuth_deg: float = 65.0,
+    elevation_deg: float = 15.0,
+    distance: float = 2.45,
+    resolution: int = 256,
+    return_rgba: bool = False,
+) -> Optional[np.ndarray]:
+    """Render a GSO ground-truth mesh preserving its native 4096x4096 UV texture map."""
+    try:
+        import trimesh
+        import pyrender
+
+        tm = trimesh.load(str(mesh_path), force="mesh")
+        if tm is None or len(tm.faces) == 0:
+            return None
+        tm.apply_transform(GSO_ZUP_TO_YUP_4X4)
+        verts, _, _ = _normalize_vertices_robust(np.asarray(tm.vertices, dtype=np.float32))
+        tm.vertices = verts
+        try:
+            tm.fix_normals()
+        except Exception:
+            pass
+
+        tex_img = _find_gso_texture_image(tm, mesh_path=mesh_path)
+        vis = getattr(tm, "visual", None)
+        uv = getattr(vis, "uv", None) if vis is not None else None
+
+        if uv is not None and len(uv) == len(tm.vertices) and tex_img is not None:
+            mat = pyrender.MetallicRoughnessMaterial(
+                baseColorFactor=[1.0, 1.0, 1.0, 1.0],
+                baseColorTexture=tex_img.convert("RGBA"),
+                metallicFactor=0.0,
+                roughnessFactor=1.0,
+                alphaMode="OPAQUE",
+                doubleSided=True,
+            )
+            pm = pyrender.Mesh.from_trimesh(tm, material=mat, smooth=False)
+        else:
+            cvis = bake_texture_to_vertices(tm, mesh_path=mesh_path)
+            vcols = None
+            if cvis is not None and getattr(cvis, "vertex_colors", None) is not None:
+                vcols = np.asarray(cvis.vertex_colors)[:, :3]
+            gt_mesh = Mesh3D(
+                vertices=np.asarray(tm.vertices, dtype=np.float32),
+                faces=np.asarray(tm.faces, dtype=np.int64),
+                vertex_colors=vcols,
+            )
+            rgb = render_novel_view_same_bg(
+                gt_mesh,
+                azimuth_deg=azimuth_deg,
+                elevation_deg=elevation_deg,
+                distance=distance,
+                resolution=resolution,
+                white_bg=True,
+                already_normalized=True,
+            )
+            if rgb is None or not return_rgba:
+                return rgb
+            alpha = (np.any(rgb < 254, axis=-1).astype(np.uint8) * 255)[..., None]
+            return np.concatenate([rgb, alpha], axis=-1)
+
+        scene = pyrender.Scene(
+            ambient_light=np.array([0.55, 0.55, 0.55]),
+            bg_color=np.array([1.0, 1.0, 1.0, 1.0]),
+        )
+        scene.add(pm)
+
+        camera_pose = make_camera_pose(azimuth_deg, elevation_deg, distance)
+        scene.add(pyrender.PerspectiveCamera(yfov=np.radians(49.1)), pose=camera_pose)
+        scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=1.0), pose=camera_pose)
+
+        r = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
+        color, depth = r.render(scene, flags=pyrender.RenderFlags.SKIP_CULL_FACES)
+        r.delete()
+        color = color.copy()
+        color[depth == 0] = 255
+        if return_rgba:
+            alpha = ((depth > 0).astype(np.uint8) * 255)[..., None]
+            rgba_hi = np.concatenate([color, alpha], axis=-1)
+            return np.array(
+                Image.fromarray(rgba_hi, mode="RGBA").resize((resolution, resolution), Image.LANCZOS)
+            )
+        return np.array(
+            Image.fromarray(color).resize((resolution, resolution), Image.LANCZOS)
+        )
+    except Exception as e:
+        print(f"[GT Renderer] failed ({e})")
         return None
 
 
@@ -502,33 +618,13 @@ class BenchmarkRunner:
         elevation_deg: float = 15.0,
         resolution: int = 256,
     ) -> Optional[np.ndarray]:
-        try:
-            import trimesh
-
-            tm = trimesh.load(str(mesh_path), force="mesh")
-            if tm is None or len(tm.faces) == 0:
-                return None
-            tm.apply_transform(GSO_ZUP_TO_YUP_4X4)
-            tm.visual = bake_texture_to_vertices(tm, mesh_path=mesh_path)
-            vcols = None
-            if getattr(tm.visual, "vertex_colors", None) is not None:
-                vcols = np.asarray(tm.visual.vertex_colors)[:, :3]
-            gt_mesh = Mesh3D(
-                vertices=np.asarray(tm.vertices, dtype=np.float32),
-                faces=np.asarray(tm.faces, dtype=np.int64),
-                vertex_colors=vcols,
-            )
-            return render_novel_view_same_bg(
-                gt_mesh,
-                azimuth_deg=azimuth_deg,
-                elevation_deg=elevation_deg,
-                resolution=resolution,
-                white_bg=True,
-                already_normalized=False,
-            )
-        except Exception as e:
-            print(f"[GT Renderer] failed ({e})")
-            return None
+        return render_gso_mesh_view(
+            mesh_path,
+            azimuth_deg=azimuth_deg,
+            elevation_deg=elevation_deg,
+            resolution=resolution,
+            return_rgba=False,
+        )
 
     def run(self) -> pd.DataFrame:
         samples = load_gso_samples(

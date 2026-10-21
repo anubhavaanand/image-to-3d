@@ -31,7 +31,7 @@ def _skimage_mc_func(level, iso=0.0):
     try:
         v, f, _, _ = measure.marching_cubes(vol, float(iso))
         v = np.ascontiguousarray(v[:, [2, 1, 0]], dtype=np.float32)
-        f = np.ascontiguousarray(f, dtype=np.int64)
+        f = np.ascontiguousarray(f[:, [0, 2, 1]], dtype=np.int64)
     except Exception:
         return (
             torch.zeros((0, 3), dtype=torch.float32),
@@ -228,6 +228,16 @@ class TriposrEngine(AbstractEngine):
             )
 
         mesh_obj = meshes[0]
+        try:
+            f_arr = np.asarray(mesh_obj.faces, dtype=np.int64)
+            v_arr = np.asarray(mesh_obj.vertices, dtype=np.float32)
+            if len(f_arr) > 0:
+                v0, v1, v2 = v_arr[f_arr[:, 0]], v_arr[f_arr[:, 1]], v_arr[f_arr[:, 2]]
+                if float(np.sum(v0 * np.cross(v1, v2))) < 0.0:
+                    mesh_obj.invert()
+        except Exception:
+            pass
+
         vertex_colors = None
         try:
             vertex_colors = self._query_interior_vertex_colors(mesh_obj, scene_codes[0])

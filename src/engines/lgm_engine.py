@@ -294,9 +294,10 @@ class LGMEngine(AbstractEngine):
 
             # Always use skimage.measure.marching_cubes on CPU grid_np so vertex
             # coordinates stay in (ix, iy, iz) = (x, y, z) order without axis reversal!
+            # Reverse face winding because grid_np has high opacity inside and low outside.
             verts, faces, _, _ = measure.marching_cubes(grid_np, iso)
             verts = verts.astype(np.float32)
-            faces = faces.astype(np.int64)
+            faces = np.ascontiguousarray(faces[:, [0, 2, 1]], dtype=np.int64)
 
             if len(verts) == 0 or len(faces) == 0:
                 return None
