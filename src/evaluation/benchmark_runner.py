@@ -106,6 +106,7 @@ def load_gso_samples(
     dataset_path: str | Path,
     num_samples: int = 100,
     num_gt_points: int = 10000,
+    object_ids: Optional[List[str]] = None,
 ) -> List[GSOSample]:
     import trimesh
 
@@ -115,7 +116,14 @@ def load_gso_samples(
         return []
 
     samples: List[GSOSample] = []
-    obj_dirs = sorted([d for d in root.iterdir() if d.is_dir()])[:num_samples]
+    if object_ids:
+        _missing = [o for o in object_ids if not (root / o).is_dir()]
+        if _missing:
+            raise RuntimeError(f"[GSO Loader] requested objects absent from dataset: {_missing}")
+        obj_dirs = [root / o for o in object_ids]
+        print(f"[GSO Loader] using explicit object_ids ({len(obj_dirs)}): {object_ids}")
+    else:
+        obj_dirs = sorted([d for d in root.iterdir() if d.is_dir()])[:num_samples]
 
     for obj_dir in obj_dirs:
         if (obj_dir / "images" / "000.png").exists():
@@ -162,6 +170,14 @@ def load_gso_samples(
             )
         )
 
+    if object_ids:
+        _loaded = {sm.sample_id for sm in samples}
+        _dropped = [o for o in object_ids if o not in _loaded]
+        if _dropped:
+            raise RuntimeError(
+                f"[GSO Loader] {len(_dropped)} of {len(object_ids)} requested objects produced no sample "
+                f"(no usable input image and/or unreadable mesh): {_dropped}"
+            )
     print(f"[GSO Loader] Loaded {len(samples)} samples from {root}.")
     return samples
 
@@ -369,10 +385,12 @@ class BenchmarkRunner:
         num_samples: int = 100,
         num_points: int = 10000,
         output_dir: str | Path = "outputs",
+        object_ids: Optional[List[str]] = None,
     ):
         self.dataset_path = Path(dataset_path)
         self.engines = engines
         self.num_samples = num_samples
+        self.object_ids = object_ids
         self.num_points = num_points
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -419,6 +437,7 @@ class BenchmarkRunner:
             self.dataset_path,
             num_samples=self.num_samples,
             num_gt_points=self.num_points,
+            object_ids=self.object_ids,
         )
         if not samples:
             raise RuntimeError(f"No valid GSO samples found in {self.dataset_path}")
