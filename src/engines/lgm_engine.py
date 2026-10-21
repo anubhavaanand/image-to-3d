@@ -129,6 +129,11 @@ class LGMEngine(AbstractEngine):
         if self.model is None or self.mv_pipeline is None:
             self.load_model(big=True)
 
+        # Deterministic seeds (mirrors spar3d_engine) — ImageDream multi-view
+        # diffusion is stochastic without this.
+        torch.manual_seed(42)
+        np.random.seed(42)
+
         t0 = time.perf_counter()
 
         rgba = image.convert("RGBA")

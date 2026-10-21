@@ -1,0 +1,222 @@
+[
+  {
+    "engine": "TRELLIS",
+    "sample_id": "3D_Dollhouse_Happy_Brother",
+    "latency_s": 15.7826,
+    "vram_peak_gb": 6.41,
+    "chamfer_distance": 0.08545509024111582,
+    "f_score_0.1": 0.9522966309823677,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 18.461999198968265,
+    "lpips": 0.23073281347751617,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 15.336,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 192060,
+      "face_count": 384108,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "3D_Dollhouse_Sofa",
+    "latency_s": 16.4575,
+    "vram_peak_gb": 6.77,
+    "chamfer_distance": 0.07577325938835394,
+    "f_score_0.1": 0.99234482063684,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 18.118032136517872,
+    "lpips": 0.3051133453845978,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 15.97,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 371536,
+      "face_count": 743112,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "ASICS_GELAce_Pro_Pearl_WhitePink",
+    "latency_s": 16.2437,
+    "vram_peak_gb": 6.71,
+    "chamfer_distance": 0.17702700510339633,
+    "f_score_0.1": 0.7406575962504185,
+    "f_score_0.2": 0.8750446161656045,
+    "f_score_0.5": 0.983946352367405,
+    "psnr": 15.997991095204295,
+    "lpips": 0.4973793923854828,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 15.794,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 376550,
+      "face_count": 753168,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "ASICS_GELLinksmaster_WhiteCoffeeSand",
+    "latency_s": 13.62,
+    "vram_peak_gb": 6.32,
+    "chamfer_distance": 0.05343295162686242,
+    "f_score_0.1": 0.9892385019710906,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 15.495960528307599,
+    "lpips": 0.26665928959846497,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 13.182,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 255420,
+      "face_count": 510972,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "ASICS_GELResolution_5_Flash_YellowBlackSilver",
+    "latency_s": 17.3096,
+    "vram_peak_gb": 6.9,
+    "chamfer_distance": 0.19770867358833458,
+    "f_score_0.1": 0.7242970941082378,
+    "f_score_0.2": 0.8500459981600736,
+    "f_score_0.5": 0.9705049673135328,
+    "psnr": 15.956666263300441,
+    "lpips": 0.3908720314502716,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 16.83,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 373174,
+      "face_count": 746388,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "ASICS_HyperRocketgirl_SP_5_WhiteMalibu_BlueBlack",
+    "latency_s": 13.2026,
+    "vram_peak_gb": 6.17,
+    "chamfer_distance": 0.06950847973051338,
+    "f_score_0.1": 0.9730203913914428,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 20.318548844122056,
+    "lpips": 0.2319556474685669,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 12.759,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 207122,
+      "face_count": 414288,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "Android_Figure_Panda",
+    "latency_s": 27.5831,
+    "vram_peak_gb": 8.2,
+    "chamfer_distance": 0.1343468434455151,
+    "f_score_0.1": 0.8299772445911691,
+    "f_score_0.2": 0.9491935060158672,
+    "f_score_0.5": 0.9992494370778084,
+    "psnr": 12.415309428143434,
+    "lpips": 0.443961501121521,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 27.105,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 719298,
+      "face_count": 1438588,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "Animal_Planet_Foam_2Headed_Dragon",
+    "latency_s": 13.6798,
+    "vram_peak_gb": 6.25,
+    "chamfer_distance": 0.14822658683956874,
+    "f_score_0.1": 0.7150459729104723,
+    "f_score_0.2": 0.936735778841042,
+    "f_score_0.5": 1.0,
+    "psnr": 14.515057406224745,
+    "lpips": 0.4001981019973755,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 13.23,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 242924,
+      "face_count": 485872,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "Azure_Snake_Tieks_Leather_Snake_Print_Ballet_Flats",
+    "latency_s": 12.9915,
+    "vram_peak_gb": 6.21,
+    "chamfer_distance": 0.07412860657796622,
+    "f_score_0.1": 0.9608257346439902,
+    "f_score_0.2": 0.9998499774966245,
+    "f_score_0.5": 1.0,
+    "psnr": 17.865707864262742,
+    "lpips": 0.2654205560684204,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 12.553,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 172860,
+      "face_count": 345732,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TRELLIS",
+    "sample_id": "Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl",
+    "latency_s": 18.1791,
+    "vram_peak_gb": 7.06,
+    "chamfer_distance": 0.0628966693222336,
+    "f_score_0.1": 0.9874517517213447,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 11.448632131283356,
+    "lpips": 0.37733522057533264,
+    "metadata": {
+      "engine": "TRELLIS",
+      "output_format": "mesh",
+      "latency_s": 17.734,
+      "slat_steps": 8,
+      "sparse_steps": 8,
+      "vertex_count": 350548,
+      "face_count": 700988,
+      "has_vertex_colors": true
+    }
+  }
+]
