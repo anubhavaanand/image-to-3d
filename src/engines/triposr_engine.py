@@ -4,6 +4,7 @@ TripoSR Engine — audited wrapper for VAST-AI-Research/TripoSR (stabilityai/Tri
 
 from __future__ import annotations
 
+import re
 import sys
 import time
 from pathlib import Path
@@ -39,6 +40,66 @@ def _skimage_mc_func(level, iso=0.0):
     return torch.from_numpy(v), torch.from_numpy(f)
 
 
+# transformers 4.x ViT key naming -> 5.x+ naming. transformers 5.x renamed the
+# ViT internals: `encoder.layer.N` -> `layers.N`, BERT-style attention/MLP
+# submodule names -> modern q/k/v/o_proj + mlp.fc1/fc2. The stabilityai/TripoSR
+# model.ckpt stores the DINO ViT-B/16 image-tokenizer weights in 4.x naming, so
+# under 5.x only 8/200 keys matched and 98.5% of the tokenizer ran at random
+# init (root cause of fragmented TripoSR meshes). LayerNorm semantics are
+# unchanged between 4.x and 5.x (both pre-norm: layernorm_before -> attention,
+# layernorm_after -> MLP), so only the paths are renamed.
+_VIT_4X_TO_5X_RULES = [
+    (r"^encoder\.layer\.(\d+)\.attention\.attention\.query\.", r"layers.\1.attention.q_proj."),
+    (r"^encoder\.layer\.(\d+)\.attention\.attention\.key\.", r"layers.\1.attention.k_proj."),
+    (r"^encoder\.layer\.(\d+)\.attention\.attention\.value\.", r"layers.\1.attention.v_proj."),
+    (r"^encoder\.layer\.(\d+)\.attention\.output\.dense\.", r"layers.\1.attention.o_proj."),
+    (r"^encoder\.layer\.(\d+)\.intermediate\.dense\.", r"layers.\1.mlp.fc1."),
+    (r"^encoder\.layer\.(\d+)\.output\.dense\.", r"layers.\1.mlp.fc2."),
+    (r"^encoder\.layer\.(\d+)\.layernorm_before\.", r"layers.\1.layernorm_before."),
+    (r"^encoder\.layer\.(\d+)\.layernorm_after\.", r"layers.\1.layernorm_after."),
+]
+
+
+def _remap_vit_checkpoint_keys(state_dict, model):
+    """Remap transformers-4.x ViT checkpoint keys to the live model's naming.
+
+    Version-proof shim: under transformers 4.x every key already matches the
+    model and the function is a no-op; under 5.x+ the 4.x-named keys are
+    rewritten. A remapped key is accepted only if it exists in the live
+    model's state_dict with a matching shape, so future renames fail loudly
+    (reported by load_state_dict) instead of silently corrupting weights.
+    """
+    model_sd = model.state_dict()
+    model_keys = set(model_sd.keys())
+    unmatched = [
+        k for k in state_dict
+        if k not in model_keys and k.startswith("image_tokenizer.model.")
+    ]
+    if not unmatched:
+        return state_dict  # already current naming (transformers 4.x) — no-op
+
+    rules = [(re.compile(pat), repl) for pat, repl in _VIT_4X_TO_5X_RULES]
+    out, remapped = {}, 0
+    for k, v in state_dict.items():
+        if k in model_keys or not k.startswith("image_tokenizer.model."):
+            out[k] = v
+            continue
+        sub = k[len("image_tokenizer.model."):]
+        for pat, repl in rules:
+            cand = pat.sub(repl, sub)
+            if cand != sub:
+                full = "image_tokenizer.model." + cand
+                ref = model_sd.get(full)
+                if ref is not None and tuple(ref.shape) == tuple(v.shape):
+                    out[full] = v
+                    remapped += 1
+                    break
+        else:
+            out[k] = v  # keep original; load_state_dict(strict=False) reports it
+    print(f"[TripoSR] Remapped {remapped} transformers-4.x ViT keys to current naming.")
+    return out
+
+
 class TriposrEngine(AbstractEngine):
     def __init__(self, device: str = "cuda", chunk_size: int = 8192, resolution: int = 256):
         self.device = device
@@ -69,9 +130,10 @@ class TriposrEngine(AbstractEngine):
         tsr_iso.marching_cubes = _skimage_mc_func
 
         _orig_load_state_dict = TSR.load_state_dict
-        def _permissive_load_state_dict(self_model, state_dict, strict=False, **kwargs):
+        def _remap_load_state_dict(self_model, state_dict, strict=False, **kwargs):
+            state_dict = _remap_vit_checkpoint_keys(state_dict, self_model)
             return _orig_load_state_dict(self_model, state_dict, strict=False, **kwargs)
-        TSR.load_state_dict = _permissive_load_state_dict
+        TSR.load_state_dict = _remap_load_state_dict
 
         print("[TripoSR] Loading stabilityai/TripoSR …")
         self.model = TSR.from_pretrained(
