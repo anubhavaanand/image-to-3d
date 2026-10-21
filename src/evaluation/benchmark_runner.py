@@ -265,7 +265,7 @@ def align_mesh_to_gt(
     return aligned_mesh, aligned_pts.astype(np.float32)
 
 
-def make_camera_pose(azimuth_deg: float, elevation_deg: float = 15.0, distance: float = 2.0) -> np.ndarray:
+def make_camera_pose(azimuth_deg: float, elevation_deg: float = 15.0, distance: float = 2.45) -> np.ndarray:
     az = np.radians(azimuth_deg)
     el = np.radians(elevation_deg)
     cam_pos = np.array(
@@ -293,7 +293,7 @@ def render_novel_view_same_bg(
     mesh: Mesh3D,
     azimuth_deg: float = 65.0,
     elevation_deg: float = 15.0,
-    distance: float = 2.0,
+    distance: float = 2.45,
     resolution: int = 256,
     white_bg: bool = True,
     already_normalized: bool = False,
@@ -337,15 +337,18 @@ def render_novel_view_same_bg(
         scene.add(pyrender.Mesh.from_trimesh(tm, smooth=False))
 
         camera_pose = make_camera_pose(azimuth_deg, elevation_deg, distance)
-        camera = pyrender.PerspectiveCamera(yfov=np.radians(45.0))
+        camera = pyrender.PerspectiveCamera(yfov=np.radians(49.1))
         scene.add(camera, pose=camera_pose)
 
         light = pyrender.DirectionalLight(color=np.ones(3), intensity=1.35)
         scene.add(light, pose=camera_pose)
 
         r = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
-        color, _ = r.render(scene, flags=pyrender.RenderFlags.SKIP_CULL_FACES)
+        color, depth = r.render(scene, flags=pyrender.RenderFlags.SKIP_CULL_FACES)
         r.delete()
+        if white_bg:
+            color = color.copy()
+            color[depth == 0] = 255
         color = np.array(
             Image.fromarray(color).resize((resolution, resolution), Image.LANCZOS)
         )
@@ -511,14 +514,17 @@ class BenchmarkRunner:
                             row["psnr"] = np.nan
                             row["lpips"] = np.nan
 
-                        if idx < 10 and pred_render is not None:
+                        if pred_render is not None:
                             qdir = self.output_dir / "qualitative" / sample.sample_id
                             qdir.mkdir(parents=True, exist_ok=True)
                             Image.fromarray(pred_render).save(qdir / f"{engine_name}_novel.png")
                             if gt_render is not None and not (qdir / "gt_novel.png").exists():
                                 Image.fromarray(gt_render).save(qdir / "gt_novel.png")
                             if not (qdir / "input.png").exists():
-                                clean_img.save(qdir / "input.png")
+                                _bg_w = Image.new("RGBA", clean_img.size, (255, 255, 255, 255))
+                                Image.alpha_composite(_bg_w, clean_img.convert("RGBA")).convert("RGB").save(
+                                    qdir / "input.png"
+                                )
                             try:
                                 import trimesh as _tm
                                 vc_out = None

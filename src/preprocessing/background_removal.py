@@ -15,9 +15,12 @@ class BackgroundRemover:
         orig_rgba = image.convert("RGBA")
         orig_arr = np.array(orig_rgba)
 
-        # If input already has a valid transparent background (e.g. from pyrender RGBA), preserve it
-        if orig_arr[..., 3].min() < 10 and 0.03 < float((orig_arr[..., 3] > 10).mean()) < 0.85:
-            return orig_rgba
+        # If input already has a valid transparent background (e.g. from pyrender RGBA),
+        # preserve it -- but force transparent pixels to pure white so a later
+        # .convert("RGB") never yields a black background or dark Lanczos fringes.
+        if orig_arr[..., 3].min() < 10 and 0.03 < float((orig_arr[..., 3] > 10).mean()) < 0.88:
+            orig_arr[orig_arr[..., 3] < 10, :3] = 255
+            return Image.fromarray(orig_arr, mode="RGBA")
 
         rgba = rembg.remove(orig_rgba, session=self.session).convert("RGBA")
         arr = np.array(rgba)
@@ -38,8 +41,9 @@ class BackgroundRemover:
             fg_mask = ~border_white_bg
             if fg_mask.any():
                 orig_arr[..., 3] = fg_mask.astype(np.uint8) * 255
+                orig_arr[orig_arr[..., 3] < 10, :3] = 255
                 return Image.fromarray(orig_arr, mode="RGBA")
         else:
             arr[border_white_bg, 3] = 0
-            return Image.fromarray(arr, mode="RGBA")
-        return rgba
+        arr[arr[..., 3] < 10, :3] = 255
+        return Image.fromarray(arr, mode="RGBA")

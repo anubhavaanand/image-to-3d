@@ -26,11 +26,17 @@ from huggingface_hub import hf_hub_download
 
 from .base import AbstractEngine, ReconstructionResult, Mesh3D, GaussianCloud
 
+LGM_NEGATIVE_PROMPT = (
+    "ugly, blurry, pixelated obscure, unnatural colors, poor lighting, "
+    "dull, unclear, cropped, lowres, low quality, artifacts, duplicate"
+)
+
 
 def _install_lgm_xformers_shim() -> None:
     try:
-        import xformers.ops  # noqa: F401
-        return
+        import xformers.ops as _xops_real  # noqa: F401
+        if hasattr(_xops_real, "memory_efficient_attention") and hasattr(_xops_real, "unbind"):
+            return
     except Exception:
         pass
     import types
@@ -42,12 +48,20 @@ def _install_lgm_xformers_shim() -> None:
                 q.unsqueeze(1), k.unsqueeze(1), v.unsqueeze(1), attn_mask=attn_bias
             )
             return out.squeeze(1)
-        return _F.scaled_dot_product_attention(q, k, v, attn_mask=attn_bias)
+        # xformers 4D tensors are (B, N, H, D); PyTorch SDPA expects (B, H, N, D)
+        out = _F.scaled_dot_product_attention(
+            q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), attn_mask=attn_bias
+        )
+        return out.transpose(1, 2).contiguous()
+
+    def _unbind(tensor, dim: int = 0):
+        return torch.unbind(tensor, dim=dim)
 
     import importlib.machinery as _machinery
     _xm = types.ModuleType("xformers")
     _xops = types.ModuleType("xformers.ops")
     _xops.memory_efficient_attention = _memory_efficient_attention
+    _xops.unbind = _unbind
     _xm.ops = _xops
     # diffusers calls importlib.util.find_spec("xformers") at import time, which
     # raises ValueError("xformers.__spec__ is None") on a fake module without __spec__.
@@ -133,6 +147,8 @@ class LGMEngine(AbstractEngine):
         # diffusion is stochastic without this.
         torch.manual_seed(42)
         np.random.seed(42)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(42)
 
         t0 = time.perf_counter()
 
@@ -152,6 +168,7 @@ class LGMEngine(AbstractEngine):
         mv_image = self.mv_pipeline(
             "",
             image_np,
+            negative_prompt=LGM_NEGATIVE_PROMPT,
             guidance_scale=self.mv_guidance_scale,
             num_inference_steps=self.mv_num_inference_steps,
             elevation=self.elevation,
@@ -223,9 +240,9 @@ class LGMEngine(AbstractEngine):
             opa_all = np.asarray(gaussians.opacities, dtype=np.float32).reshape(-1)
             rgb_all = np.clip(np.asarray(gaussians.sh_coeffs, dtype=np.float32), 0.0, 1.0)
 
-            valid = opa_all > 0.05
+            valid = opa_all > 0.10
             if valid.sum() < 200:
-                valid = opa_all > 0.01
+                valid = opa_all > 0.03
             if valid.sum() < 50:
                 valid = np.ones_like(opa_all, dtype=bool)
 
@@ -235,7 +252,7 @@ class LGMEngine(AbstractEngine):
 
             med = np.median(pos_fg, axis=0)
             dists = np.linalg.norm(pos_fg - med, axis=1)
-            inlier = dists <= np.percentile(dists, 99.0)
+            inlier = dists <= np.percentile(dists, 98.5)
             if inlier.sum() >= 50:
                 pos_fg = pos_fg[inlier]
                 opa_fg = opa_fg[inlier]
@@ -246,7 +263,7 @@ class LGMEngine(AbstractEngine):
 
             pos_min, pos_max = pos_t.min(0)[0], pos_t.max(0)[0]
             pos_center = (pos_min + pos_max) / 2.0
-            pos_scale = ((pos_max - pos_min).max() / 2.0) * 1.15
+            pos_scale = ((pos_max - pos_min).max() / 2.0) * 1.12
             pos_norm = (pos_t - pos_center) / (pos_scale + 1e-8)
 
             grid = torch.zeros((resolution, resolution, resolution), dtype=torch.float32)
@@ -257,7 +274,7 @@ class LGMEngine(AbstractEngine):
                 accumulate=True,
             )
 
-            _k, _sigma = 9, 1.5
+            _k, _sigma = 7, 1.1
             _ax = torch.arange(_k, dtype=torch.float32) - (_k - 1) / 2.0
             _g = torch.exp(-(_ax ** 2) / (2.0 * (_sigma ** 2)))
             _g = (_g / _g.sum()).view(1, 1, _k, 1, 1)
@@ -271,7 +288,7 @@ class LGMEngine(AbstractEngine):
             nonzero = grid_np[grid_np > 1e-4]
             if len(nonzero) == 0:
                 return None
-            iso = float(np.percentile(nonzero, 35))
+            iso = float(np.percentile(nonzero, 52))
 
             # Always use skimage.measure.marching_cubes on CPU grid_np so vertex
             # coordinates stay in (ix, iy, iz) = (x, y, z) order without axis reversal!
@@ -289,7 +306,7 @@ class LGMEngine(AbstractEngine):
                 parts = tm.split(only_watertight=False)
                 if len(parts) > 1:
                     max_faces = max(len(p.faces) for p in parts)
-                    kept = [p for p in parts if len(p.faces) >= max(20, int(max_faces * 0.05))]
+                    kept = [p for p in parts if len(p.faces) >= max(40, int(max_faces * 0.08))]
                     if kept:
                         tm = trimesh.util.concatenate(kept)
             except Exception:
@@ -298,16 +315,25 @@ class LGMEngine(AbstractEngine):
             verts_final = np.asarray(tm.vertices, dtype=np.float32)
             faces_final = np.asarray(tm.faces, dtype=np.int64)
 
-            tree = cKDTree(pos_fg)
-            k = min(4, len(pos_fg))
+            # Build the colour donor set from high-opacity core Gaussians only.
+            # Low-opacity boundary splats are translucent fog and are the source
+            # of the blue/teal colour cast on neutral objects.
+            core_mask = opa_fg > 0.30
+            if int(core_mask.sum()) >= 100:
+                pos_color, rgb_color, opa_color = pos_fg[core_mask], rgb_fg[core_mask], opa_fg[core_mask]
+            else:
+                pos_color, rgb_color, opa_color = pos_fg, rgb_fg, opa_fg
+
+            tree = cKDTree(pos_color)
+            k = min(6, len(pos_color))
             dists_k, idx_k = tree.query(verts_final, k=k)
             if k == 1 or idx_k.ndim == 1:
-                vertex_colors = np.clip(rgb_fg[idx_k], 0.0, 1.0)
+                vertex_colors = np.clip(rgb_color[idx_k], 0.0, 1.0)
             else:
-                weights = 1.0 / (dists_k + 1e-6)
+                weights = opa_color[idx_k] / (dists_k + 1e-5)
                 weights /= weights.sum(axis=1, keepdims=True)
                 vertex_colors = np.clip(
-                    (rgb_fg[idx_k] * weights[..., None]).sum(axis=1), 0.0, 1.0
+                    (rgb_color[idx_k] * weights[..., None]).sum(axis=1), 0.0, 1.0
                 )
 
             return Mesh3D(
