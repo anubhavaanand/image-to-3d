@@ -240,8 +240,10 @@ class LGMEngine(AbstractEngine):
             opa_all = np.asarray(gaussians.opacities, dtype=np.float32).reshape(-1)
             rgb_all = np.clip(np.asarray(gaussians.sh_coeffs, dtype=np.float32), 0.0, 1.0)
 
-            valid = opa_all > 0.10
+            valid = opa_all > 0.18
             if valid.sum() < 200:
+                valid = opa_all > 0.08
+            if valid.sum() < 100:
                 valid = opa_all > 0.03
             if valid.sum() < 50:
                 valid = np.ones_like(opa_all, dtype=bool)
@@ -252,7 +254,7 @@ class LGMEngine(AbstractEngine):
 
             med = np.median(pos_fg, axis=0)
             dists = np.linalg.norm(pos_fg - med, axis=1)
-            inlier = dists <= np.percentile(dists, 98.5)
+            inlier = dists <= np.percentile(dists, 98.0)
             if inlier.sum() >= 50:
                 pos_fg = pos_fg[inlier]
                 opa_fg = opa_fg[inlier]
@@ -274,7 +276,7 @@ class LGMEngine(AbstractEngine):
                 accumulate=True,
             )
 
-            _k, _sigma = 7, 1.1
+            _k, _sigma = 5, 0.95
             _ax = torch.arange(_k, dtype=torch.float32) - (_k - 1) / 2.0
             _g = torch.exp(-(_ax ** 2) / (2.0 * (_sigma ** 2)))
             _g = (_g / _g.sum()).view(1, 1, _k, 1, 1)
@@ -288,7 +290,7 @@ class LGMEngine(AbstractEngine):
             nonzero = grid_np[grid_np > 1e-4]
             if len(nonzero) == 0:
                 return None
-            iso = float(np.percentile(nonzero, 52))
+            iso = float(np.percentile(nonzero, 62))
 
             # Always use skimage.measure.marching_cubes on CPU grid_np so vertex
             # coordinates stay in (ix, iy, iz) = (x, y, z) order without axis reversal!
@@ -318,7 +320,9 @@ class LGMEngine(AbstractEngine):
             # Build the colour donor set from high-opacity core Gaussians only.
             # Low-opacity boundary splats are translucent fog and are the source
             # of the blue/teal colour cast on neutral objects.
-            core_mask = opa_fg > 0.30
+            core_mask = opa_fg > 0.40
+            if int(core_mask.sum()) < 100:
+                core_mask = opa_fg > 0.25
             if int(core_mask.sum()) >= 100:
                 pos_color, rgb_color, opa_color = pos_fg[core_mask], rgb_fg[core_mask], opa_fg[core_mask]
             else:
@@ -330,7 +334,7 @@ class LGMEngine(AbstractEngine):
             if k == 1 or idx_k.ndim == 1:
                 vertex_colors = np.clip(rgb_color[idx_k], 0.0, 1.0)
             else:
-                weights = opa_color[idx_k] / (dists_k + 1e-5)
+                weights = (opa_color[idx_k] ** 2) / (dists_k ** 2 + 1e-6)
                 weights /= weights.sum(axis=1, keepdims=True)
                 vertex_colors = np.clip(
                     (rgb_color[idx_k] * weights[..., None]).sum(axis=1), 0.0, 1.0

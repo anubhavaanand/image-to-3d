@@ -39,7 +39,9 @@ class TrellisEngine(AbstractEngine):
         output_format: OutputFormat = "mesh",
         slat_steps: int = 12,
         sparse_steps: int = 12,
-        cfg_strength: float = 7.5,
+        sparse_cfg_strength: float = 7.5,
+        slat_cfg_strength: float = 3.0,
+        cfg_strength: float | None = None,
         staged_offload: bool = True,
     ):
         self.device = device
@@ -47,7 +49,9 @@ class TrellisEngine(AbstractEngine):
         self.output_format = output_format
         self.slat_steps = slat_steps
         self.sparse_steps = sparse_steps
-        self.cfg_strength = cfg_strength
+        self.sparse_cfg_strength = float(cfg_strength) if cfg_strength is not None else float(sparse_cfg_strength)
+        self.slat_cfg_strength = float(slat_cfg_strength)
+        self.cfg_strength = self.sparse_cfg_strength
         self.staged_offload = staged_offload
         self.pipeline = None
 
@@ -112,10 +116,10 @@ class TrellisEngine(AbstractEngine):
             cond = p.get_cond([img])
             torch.manual_seed(42)
             coords = p.sample_sparse_structure(
-                cond, 1, {"steps": self.sparse_steps, "cfg_strength": self.cfg_strength}
+                cond, 1, {"steps": self.sparse_steps, "cfg_strength": self.sparse_cfg_strength}
             )
             slat = p.sample_slat(
-                cond, coords, {"steps": self.slat_steps, "cfg_strength": self.cfg_strength}
+                cond, coords, {"steps": self.slat_steps, "cfg_strength": self.slat_cfg_strength}
             )
             del cond, coords
             gc.collect()
@@ -133,9 +137,23 @@ class TrellisEngine(AbstractEngine):
             torch.cuda.empty_cache()
             gc.collect()
 
+            out_gs_color = None
             try:
                 out_mesh = p.models["slat_decoder_mesh"](slat)
                 outputs = {"mesh": out_mesh}
+                if "slat_decoder_gs" in p.models:
+                    try:
+                        p.models["slat_decoder_mesh"].to("cpu")
+                        torch.cuda.empty_cache()
+                        p.models["slat_decoder_gs"].to(self.dev)
+                        with torch.cuda.device(self.dev):
+                            out_gs_color = p.models["slat_decoder_gs"](slat)
+                    except Exception as gs_err:
+                        print(f"[TRELLIS] GS color decoder fallback ({gs_err})")
+                    finally:
+                        p.models["slat_decoder_gs"].to("cpu")
+                        p.models["slat_decoder_mesh"].to(self.dev)
+                        torch.cuda.empty_cache()
             except torch.OutOfMemoryError:
                 print("[TRELLIS] mesh decode OOM -> gaussian fallback")
                 torch.cuda.empty_cache()
@@ -158,14 +176,15 @@ class TrellisEngine(AbstractEngine):
                 formats=[self.output_format],
                 sparse_structure_sampler_params={
                     "steps": self.sparse_steps,
-                    "cfg_strength": self.cfg_strength,
+                    "cfg_strength": self.sparse_cfg_strength,
                 },
                 slat_sampler_params={
                     "steps": self.slat_steps,
-                    "cfg_strength": self.cfg_strength,
+                    "cfg_strength": self.slat_cfg_strength,
                 },
                 preprocess_image=True,
             )
+            out_gs_color = outputs.get("gaussian")
 
         latency = time.perf_counter() - t0
         print(f"[TRELLIS] Inference done in {latency:.2f}s (mode={decode_mode})")
@@ -176,15 +195,14 @@ class TrellisEngine(AbstractEngine):
             "latency_s": round(latency, 3),
             "slat_steps": self.slat_steps,
             "sparse_steps": self.sparse_steps,
+            "sparse_cfg_strength": self.sparse_cfg_strength,
+            "slat_cfg_strength": self.slat_cfg_strength,
         }
 
         if decode_mode == "mesh":
             raw = outputs["mesh"][0]
-            verts = raw.vertices.detach().cpu().numpy().astype(np.float32)
+            verts_raw = raw.vertices.detach().cpu().numpy().astype(np.float32)
             faces = raw.faces.detach().cpu().numpy().astype(np.int32)
-            # Convert Blender Z-up (x, y, z) -> OpenGL Y-up (x, z, -y) via Rx(-90)
-            rx_neg90 = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]], dtype=np.float32)
-            verts = verts @ rx_neg90.T
 
             vcols = None
             attrs = getattr(raw, "vertex_attrs", None)
@@ -197,6 +215,44 @@ class TrellisEngine(AbstractEngine):
                     )
                 except Exception as ce:
                     print(f"[TRELLIS] vertex color warning: {ce}")
+
+            # Transfer high-fidelity appearance colors from SLatGaussianDecoder in the shared
+            # pre-rotated [-0.5, 0.5]^3 coordinate frame via opacity-weighted 3D k-NN.
+            if out_gs_color is not None and len(out_gs_color) > 0 and len(verts_raw) > 0:
+                try:
+                    from scipy.spatial import cKDTree
+
+                    gs0 = out_gs_color[0]
+                    gs_xyz = gs0.get_xyz.detach().cpu().numpy().astype(np.float32)
+                    gs_opa = gs0.get_opacity.detach().cpu().numpy().astype(np.float32).reshape(-1)
+                    sh_c0 = 0.28209479177387814
+                    gs_rgb = np.clip(
+                        gs0._features_dc.detach().cpu().numpy().astype(np.float32)[:, 0, :3] * sh_c0 + 0.5,
+                        0.0,
+                        1.0,
+                    )
+                    mask = gs_opa > 0.10
+                    if int(mask.sum()) >= 64:
+                        gs_xyz, gs_opa, gs_rgb = gs_xyz[mask], gs_opa[mask], gs_rgb[mask]
+                    tree = cKDTree(gs_xyz)
+                    k = min(8, len(gs_xyz))
+                    dists, idx = tree.query(verts_raw, k=k)
+                    if k == 1 or idx.ndim == 1:
+                        gs_vcols = gs_rgb[idx]
+                    else:
+                        w = (gs_opa[idx] ** 2) / (dists ** 2 + 1e-6)
+                        w /= w.sum(axis=1, keepdims=True)
+                        gs_vcols = (gs_rgb[idx] * w[..., None]).sum(axis=1).astype(np.float32)
+                    if vcols is not None and len(vcols) == len(gs_vcols):
+                        vcols = np.clip(0.75 * gs_vcols + 0.25 * vcols, 0.0, 1.0).astype(np.float32)
+                    else:
+                        vcols = np.clip(gs_vcols, 0.0, 1.0).astype(np.float32)
+                except Exception as gce:
+                    print(f"[TRELLIS] GS color transfer warning: {gce}")
+
+            # Convert Blender Z-up (x, y, z) -> OpenGL Y-up (x, z, -y) via Rx(-90)
+            rx_neg90 = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]], dtype=np.float32)
+            verts = verts_raw @ rx_neg90.T
 
             mesh = Mesh3D(vertices=verts, faces=faces, vertex_colors=vcols)
             metadata.update({

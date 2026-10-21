@@ -165,9 +165,26 @@ class Spar3dEngine(AbstractEngine):
                 h, w = rgb.shape[:2]
                 u = np.clip(np.nan_to_num(np.asarray(uv[:, 0], dtype=np.float64), nan=0.5), 0.0, 1.0)
                 v = np.clip(np.nan_to_num(np.asarray(uv[:, 1], dtype=np.float64), nan=0.5), 0.0, 1.0)
-                x = np.clip(np.round(u * (w - 1)).astype(int), 0, w - 1)
-                y = np.clip(np.round(v * (h - 1)).astype(int), 0, h - 1)
-                vcols = np.clip(rgb[y, x], 0.0, 1.0).astype(np.float32)
+                # SPAR3D's baker_kernel.cu writes UV v = 1.0 - row/height (OpenGL bottom-left origin).
+                # Bilinearly sample at x = u * (w - 1), y = (1.0 - v) * (h - 1).
+                fx = u * (w - 1)
+                fy = (1.0 - v) * (h - 1)
+                x0 = np.clip(np.floor(fx).astype(int), 0, w - 1)
+                x1 = np.clip(x0 + 1, 0, w - 1)
+                y0 = np.clip(np.floor(fy).astype(int), 0, h - 1)
+                y1 = np.clip(y0 + 1, 0, h - 1)
+                wx = (fx - x0)[..., None].astype(np.float32)
+                wy = (fy - y0)[..., None].astype(np.float32)
+                c00 = rgb[y0, x0]
+                c10 = rgb[y0, x1]
+                c01 = rgb[y1, x0]
+                c11 = rgb[y1, x1]
+                vcols = np.clip(
+                    (1.0 - wy) * ((1.0 - wx) * c00 + wx * c10)
+                    + wy * ((1.0 - wx) * c01 + wx * c11),
+                    0.0,
+                    1.0,
+                ).astype(np.float32)
             else:
                 vc_vis = vis.to_color()
                 if getattr(vc_vis, "vertex_colors", None) is not None:
@@ -234,9 +251,9 @@ class Spar3dEngine(AbstractEngine):
         faces = np.asarray(tm.faces, dtype=np.int64)
         vcols = self._extract_spar3d_vertex_colors(tm, verts)
 
-        # Rotate from SPAR3D's Z-up coordinate system to OpenGL Y-up via Rx(-90)
-        rx_neg90 = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]], dtype=np.float32)
-        verts = verts @ rx_neg90.T
+        # Note: spar3d/system.py:705-707 & 915 ALREADY applies output_rotation = Ry(90) @ Rx(-90)
+        # to tmesh inside run_image(), placing vertices in OpenGL Y-up (+Y up, +Z front).
+        # Do NOT apply a second Rx(-90) rotation here.
 
         print(f"[SPAR3D] Inference done in {latency:.2f}s ({len(verts)} verts)")
 

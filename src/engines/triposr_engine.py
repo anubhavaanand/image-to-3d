@@ -157,21 +157,44 @@ class TriposrEngine(AbstractEngine):
             normals = np.zeros_like(verts)
 
         radius = float(self.model.renderer.cfg.radius)
-        offsets = [0.0, -0.015, -0.030]
-        weights = [0.25, 0.45, 0.30]
+        offsets = [0.0, -0.002, -0.005]
+        base_weights = [0.60, 0.25, 0.15]
         color_accum = np.zeros((len(verts), 3), dtype=np.float32)
+        weight_accum = np.zeros((len(verts), 1), dtype=np.float32)
+        surf_density = None
 
         with torch.no_grad():
-            for off, w in zip(offsets, weights):
+            for idx, (off, w) in enumerate(zip(offsets, base_weights)):
                 pts = np.clip(verts + off * normals, -radius, radius)
                 pts_t = torch.from_numpy(pts).float().to(self.device)
                 queried = self.model.renderer.query_triplane(
                     self.model.decoder, pts_t, scene_code
                 )
-                c = queried["color"].detach().cpu().numpy().astype(np.float32)
-                color_accum += w * np.clip(c, 0.0, 1.0)
+                c = np.clip(
+                    queried["color"].detach().cpu().numpy().astype(np.float32),
+                    0.0,
+                    1.0,
+                )
+                d = (
+                    queried["density_act"]
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .astype(np.float32)
+                    .reshape(-1, 1)
+                )
+                if idx == 0:
+                    surf_density = d
+                    eff_w = np.full((len(verts), 1), w, dtype=np.float32)
+                else:
+                    # Only blend interior samples where density remains inside the solid shell;
+                    # prevents thin shells (bowls, pots, wings) from blending empty interior grey.
+                    inside = (d >= 0.85 * surf_density).astype(np.float32)
+                    eff_w = w * inside
+                color_accum += eff_w * c
+                weight_accum += eff_w
 
-        return np.clip(color_accum, 0.0, 1.0)
+        return np.clip(color_accum / np.maximum(weight_accum, 1e-6), 0.0, 1.0)
 
     def predict(self, image: Image.Image) -> ReconstructionResult:
         import torch

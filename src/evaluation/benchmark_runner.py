@@ -45,6 +45,7 @@ class GSOSample:
     gt_mesh_path: Optional[Path] = None
     gt_novel_Views: List[Path] = field(default_factory=list)
     gt_points: Optional[np.ndarray] = None
+    gt_colors: Optional[np.ndarray] = None
 
 
 def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
@@ -65,7 +66,8 @@ def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
             img = mat.image
         elif getattr(mat, "baseColorTexture", None) is not None:
             img = mat.baseColorTexture
-            is_spar3d_top_left = True
+            # SPAR3D's baker_kernel.cu also uses standard OpenGL bottom-left UV origin (v = 1 - row/height).
+            is_spar3d_top_left = False
 
     if img is None and mesh_path is not None:
         mp = Path(mesh_path)
@@ -151,12 +153,24 @@ def load_gso_samples(
         gt_mesh_path = mesh_candidates[0] if mesh_candidates else None
 
         gt_points = None
+        gt_colors = None
         if gt_mesh_path and gt_mesh_path.exists():
             try:
                 mesh = trimesh.load(str(gt_mesh_path), force="mesh")
                 mesh.apply_transform(GSO_ZUP_TO_YUP_4X4)
-                pts, _ = trimesh.sample.sample_surface(mesh, num_gt_points)
+                try:
+                    cvis = bake_texture_to_vertices(mesh, gt_mesh_path)
+                    if cvis is not None:
+                        mesh.visual = cvis
+                except Exception:
+                    pass
+                pts, face_idx = trimesh.sample.sample_surface(mesh, num_gt_points)
                 gt_points = normalize_point_cloud(np.array(pts, dtype=np.float32))
+                if getattr(mesh.visual, "kind", None) == "vertex" and getattr(mesh.visual, "vertex_colors", None) is not None:
+                    vc = np.asarray(mesh.visual.vertex_colors[:, :3], dtype=np.float32)
+                    if vc.max() > 1.05:
+                        vc = vc / 255.0
+                    gt_colors = vc[mesh.faces[face_idx]].mean(axis=1).astype(np.float32)
             except Exception as e:
                 print(f"[GSO Loader] Failed to sample mesh {gt_mesh_path}: {e}")
 
@@ -167,6 +181,7 @@ def load_gso_samples(
                 gt_mesh_path=gt_mesh_path,
                 gt_novel_Views=novel_views,
                 gt_points=gt_points,
+                gt_colors=gt_colors,
             )
         )
 
@@ -214,25 +229,65 @@ def _candidate_rotations(n_yaw: int = 12) -> List[np.ndarray]:
     return rots
 
 
+def _upright_yaw_rotations(n_yaw: int = 24) -> List[np.ndarray]:
+    """
+    Generate upright candidate rotations combining full 360-deg Y-axis yaw search
+    with small camera-elevation pitch adjustments (-15, 0, +15 deg around X/Z)
+    so slight camera pitch differences between engines and GT are aligned without
+    ever flipping an object upside-down or 90-deg sideways.
+    """
+    pitch_angles = [0.0, np.radians(-15.0), np.radians(15.0)]
+    pitch_bases = [np.eye(3, dtype=np.float32)]
+    for pa in pitch_angles[1:]:
+        cp, sp = np.cos(pa), np.sin(pa)
+        pitch_bases.append(np.array([[1.0, 0.0, 0.0], [0.0, cp, -sp], [0.0, sp, cp]], dtype=np.float32))
+        pitch_bases.append(np.array([[cp, -sp, 0.0], [sp, cp, 0.0], [0.0, 0.0, 1.0]], dtype=np.float32))
+
+    rots = []
+    for i in range(n_yaw):
+        angle = 2.0 * np.pi * i / n_yaw
+        ca, sa = np.cos(angle), np.sin(angle)
+        ry = np.array([[ca, 0.0, sa], [0.0, 1.0, 0.0], [-sa, 0.0, ca]], dtype=np.float32)
+        for pb in pitch_bases:
+            rots.append(ry @ pb)
+    return rots
+
+
 def align_mesh_to_gt(
     mesh: Mesh3D,
     gt_points: np.ndarray,
     num_points: int = 10000,
-    n_iter: int = 3,
+    n_iter: int = 5,
+    gt_colors: Optional[np.ndarray] = None,
 ) -> Tuple[Mesh3D, np.ndarray]:
     import trimesh
     from scipy.spatial import cKDTree
 
     norm_verts, _, _ = _normalize_vertices_robust(mesh.vertices)
     tm_norm = trimesh.Trimesh(vertices=norm_verts, faces=mesh.faces, process=False)
-    pred_pts, _ = trimesh.sample.sample_surface(tm_norm, num_points)
+    pred_pts, pred_face_idx = trimesh.sample.sample_surface(tm_norm, num_points)
     pred_pts = normalize_point_cloud(np.array(pred_pts, dtype=np.float32))
+
+    pred_cols = None
+    if mesh.vertex_colors is not None and len(mesh.vertex_colors) == len(norm_verts):
+        vc = np.asarray(mesh.vertex_colors[:, :3], dtype=np.float32)
+        if vc.max() > 1.05:
+            vc = vc / 255.0
+        pred_cols = vc[mesh.faces[pred_face_idx]].mean(axis=1).astype(np.float32)
 
     gt = np.asarray(gt_points, dtype=np.float32)
     sub_n = min(2048, len(pred_pts), len(gt))
     rng = np.random.default_rng(0)
-    p_sub = pred_pts[rng.choice(len(pred_pts), sub_n, replace=False)]
-    g_sub = gt[rng.choice(len(gt), sub_n, replace=False)]
+    p_idx = rng.choice(len(pred_pts), sub_n, replace=False)
+    g_idx = rng.choice(len(gt), sub_n, replace=False)
+    p_sub = pred_pts[p_idx]
+    g_sub = gt[g_idx]
+    p_col_sub = pred_cols[p_idx] if pred_cols is not None else None
+    g_col_sub = (
+        np.asarray(gt_colors, dtype=np.float32)[g_idx]
+        if (gt_colors is not None and len(gt_colors) == len(gt))
+        else None
+    )
     gt_tree = cKDTree(g_sub)
 
     best_cd = float("inf")
@@ -269,8 +324,51 @@ def align_mesh_to_gt(
             best_R = R_total
             best_t = t_total
 
+    # Upright-locked + color-aware alignment for visual mesh rendering so novel views
+    # never flip upside-down, 90-deg sideways, or 180-deg backwards on symmetric shapes.
+    best_vis_score = float("inf")
+    best_R_vis = np.eye(3, dtype=np.float32)
+    best_t_vis = np.zeros(3, dtype=np.float32)
+    for R_init in _upright_yaw_rotations(24):
+        R_total = R_init.copy()
+        t_total = np.zeros(3, dtype=np.float32)
+        pts = p_sub @ R_total.T
+
+        for _ in range(n_iter):
+            _, idx = gt_tree.query(pts, k=1, workers=-1)
+            matched = g_sub[idx]
+            p_mean = pts.mean(axis=0)
+            m_mean = matched.mean(axis=0)
+            H = (pts - p_mean).T @ (matched - m_mean)
+            U, _, Vt = np.linalg.svd(H)
+            d = np.linalg.det(Vt.T @ U.T)
+            D = np.diag([1.0, 1.0, 1.0 if d > 0 else -1.0]).astype(np.float32)
+            R_step = (Vt.T @ D @ U.T).astype(np.float32)
+            R_cand = R_step @ R_total
+            if R_cand[1, 1] < 0.82:
+                break
+            t_step = m_mean - (p_mean @ R_step.T)
+            pts = (pts @ R_step.T) + t_step
+            R_total = R_cand
+            t_total = (t_total @ R_step.T) + t_step
+
+        d_p2g, idx_p2g = gt_tree.query(pts, k=1, workers=-1)
+        p_tree = cKDTree(pts)
+        d_g2p, idx_g2p = p_tree.query(g_sub, k=1, workers=-1)
+        cd_vis = float(np.mean(d_p2g) + np.mean(d_g2p))
+        col_pen = 0.0
+        if p_col_sub is not None and g_col_sub is not None:
+            c_p2g = float(np.mean(np.linalg.norm(p_col_sub - g_col_sub[idx_p2g], axis=1)))
+            c_g2p = float(np.mean(np.linalg.norm(g_col_sub - p_col_sub[idx_g2p], axis=1)))
+            col_pen = 0.12 * (c_p2g + c_g2p)
+        score = cd_vis + col_pen
+        if score < best_vis_score:
+            best_vis_score = score
+            best_R_vis = R_total
+            best_t_vis = t_total
+
     aligned_pts = (pred_pts @ best_R.T) + best_t
-    aligned_verts = (norm_verts @ best_R.T) + best_t
+    aligned_verts = (norm_verts @ best_R_vis.T) + best_t_vis
     aligned_mesh = Mesh3D(
         vertices=aligned_verts.astype(np.float32),
         faces=mesh.faces,
@@ -347,7 +445,7 @@ def render_novel_view_same_bg(
             pass
 
         scene = pyrender.Scene(
-            ambient_light=np.array([0.72, 0.72, 0.72]),
+            ambient_light=np.array([0.55, 0.55, 0.55]),
             bg_color=np.array([1.0, 1.0, 1.0, 1.0] if white_bg else [0.0, 0.0, 0.0, 1.0]),
         )
         scene.add(pyrender.Mesh.from_trimesh(tm, smooth=False))
@@ -356,7 +454,7 @@ def render_novel_view_same_bg(
         camera = pyrender.PerspectiveCamera(yfov=np.radians(49.1))
         scene.add(camera, pose=camera_pose)
 
-        light = pyrender.DirectionalLight(color=np.ones(3), intensity=1.35)
+        light = pyrender.DirectionalLight(color=np.ones(3), intensity=1.0)
         scene.add(light, pose=camera_pose)
 
         r = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
@@ -485,7 +583,7 @@ class BenchmarkRunner:
                     aligned_for_render: Optional[Mesh3D] = None
                     if recon.mesh is not None and sample.gt_points is not None:
                         aligned_for_render, pred_pts = align_mesh_to_gt(
-                            recon.mesh, sample.gt_points, self.num_points
+                            recon.mesh, sample.gt_points, self.num_points, gt_colors=sample.gt_colors
                         )
                         row["chamfer_distance"] = compute_chamfer_distance(
                             pred_pts, sample.gt_points
