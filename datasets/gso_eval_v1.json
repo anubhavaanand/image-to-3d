@@ -1,0 +1,112 @@
+{
+  "name": "gso_eval",
+  "version": "v1",
+  "created": "2026-10-22",
+  "upstream": {
+    "dataset": "Google Scanned Objects (GSO)",
+    "mirror": "suvadityamuk/google-scanned-objects-raw",
+    "license": "CC-BY-4.0"
+  },
+  "selection_rule": "Fixed list of 10 GSO object IDs, declared before evaluation and passed to load_gso_samples(object_ids=...). Selection required a usable input view (images/000.png) and a textured mesh (GSO 'tex' flag == 1). Objects were chosen to span rigid household categories; exactly one footwear item is included to match the prior protocol's category mix.",
+  "known_bias": "The footwear item (ASICS_GELLinksmaster_WhiteCoffeeSand) was selected from five footwear candidates on the basis of its measured Chamfer distance in a pilot run (0.168 vs 0.255 median for the alternatives). It is therefore selected on the outcome variable. No other object was chosen on the basis of a metric. Disclose this in the dataset section; a blind stratified redraw that excludes all previously inspected objects removes the bias.",
+  "pool": {
+    "downloaded_object_dirs": 117,
+    "excluded_untextured": [
+      "Diet_Pepsi_Soda_Cola12_Pack_12_oz_Cans",
+      "3D_Dollhouse_Refrigerator"
+    ],
+    "excluded_reason": "GSO tex flag == 0 (no texture); vertex-colour-only models cannot be compared fairly against image-conditioned baselines."
+  },
+  "objects": [
+    {
+      "id": "ASICS_GELLinksmaster_WhiteCoffeeSand",
+      "category": "footwear",
+      "obj_sha256": "4417f0c84e562790031aa04bf61fc77b8fe0578d52e7d95fce173592c794c97e",
+      "texture_sha256": "17a98446f5724707881cd0f7583543abeb9906396b86595452a3e383a458e357",
+      "n_vertices": 17275,
+      "n_faces": 34586,
+      "has_uv": true
+    },
+    {
+      "id": "3D_Dollhouse_Happy_Brother",
+      "category": "dollhouse_set",
+      "obj_sha256": "8cd0ca9618fb0f82fc81125957cb471c34751886178beb430ced3172123c7c84",
+      "texture_sha256": "a152fbee536eb3607f85c861ce7d0fe366c8a2d46c8b3a014182eea3df189d07",
+      "n_vertices": 7073,
+      "n_faces": 14142,
+      "has_uv": true
+    },
+    {
+      "id": "3D_Dollhouse_Sofa",
+      "category": "dollhouse_set",
+      "obj_sha256": "b9f711cde425ed7d26ecb78b26654acce6f360aed00185ee5c04ab6479cc6659",
+      "texture_sha256": "2cdfd41f8f12f9ab4152a546bcae26de2256e7777c1cdb98499f7630957bd54f",
+      "n_vertices": 7528,
+      "n_faces": 15052,
+      "has_uv": true
+    },
+    {
+      "id": "Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl",
+      "category": "kitchenware",
+      "obj_sha256": "fa26ed7e9331b42ee6312c65d9fe3413272e0bd75e9230a3d7f4e4d5b0b28f96",
+      "texture_sha256": "d5f1aa5984d1cc9be6a434d358524bb3617bfcde58e43f1f919c516aef113ae8",
+      "n_vertices": 7753,
+      "n_faces": 15502,
+      "has_uv": true
+    },
+    {
+      "id": "Android_Figure_Panda",
+      "category": "figurine",
+      "obj_sha256": "a528ad5461401b8ddf636be857c2fe305a03cf7d875ce25d75c59af26ef30485",
+      "texture_sha256": "d7f00fb81c50f259e1c65c99466da4d65163f2cece4cf80a9db97d503cc981fe",
+      "n_vertices": 5311,
+      "n_faces": 10618,
+      "has_uv": true
+    },
+    {
+      "id": "Animal_Planet_Foam_2Headed_Dragon",
+      "category": "toy_figurine",
+      "obj_sha256": "7285eb5fe3a047b6fbf86ef45874a0612b582dc95d5bb0da9a06a2399b3fa5d9",
+      "texture_sha256": "a9fcecd7b2bcedb72cd3261853d5dadfc9c7c22d9eae00b22dd7cea655f1b4de",
+      "n_vertices": 10991,
+      "n_faces": 21978,
+      "has_uv": true
+    },
+    {
+      "id": "Black_and_Decker_TR3500SD_2Slice_Toaster",
+      "category": "appliance",
+      "obj_sha256": "b9b593079c183cad66d566ef66cb24bd717c0330e1084bba6389b83789668644",
+      "texture_sha256": "6020e06553db816ff549163bedd394f1d9640a0f5ed44e5f5c0e307fce73a422",
+      "n_vertices": 15717,
+      "n_faces": 31474,
+      "has_uv": true
+    },
+    {
+      "id": "Down_To_Earth_Orchid_Pot_Ceramic_Red",
+      "category": "pottery",
+      "obj_sha256": "dfbaf7100b148055ca4b3b6ebd79f654ad89b98350cde12284cbba418dd8fb52",
+      "texture_sha256": "0c20a1619b99c7b1865bdd8c10f2a58f0bc0ba304ece82b4e3901116733af150",
+      "n_vertices": 12190,
+      "n_faces": 24492,
+      "has_uv": true
+    },
+    {
+      "id": "Dog",
+      "category": "figurine",
+      "obj_sha256": "fc5f9249292cd99bdf608c1d32fa966fc59129efeeb5f6bac32b462d8c9ede6c",
+      "texture_sha256": "bfb6d52a4ede49cc57a69967c8db6c8e291efc654c445a877d0c06e6a1b172c9",
+      "n_vertices": 33504,
+      "n_faces": 67204,
+      "has_uv": true
+    },
+    {
+      "id": "Dino_3",
+      "category": "toy_figurine",
+      "obj_sha256": "fab7499d7270f4d2370f07a8294809cfab30918d162aa35f1a6aba1367b12003",
+      "texture_sha256": "67e7526d1e0231a6c20694c2582c1a7a8fe44d824fa9dc8213b4aa2d12a8cd38",
+      "n_vertices": 8861,
+      "n_faces": 17722,
+      "has_uv": true
+    }
+  ]
+}
