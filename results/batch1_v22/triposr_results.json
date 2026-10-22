@@ -1,0 +1,192 @@
+[
+  {
+    "engine": "TripoSR",
+    "sample_id": "ASICS_GELLinksmaster_WhiteCoffeeSand",
+    "latency_s": 4.4354,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.2558588093418074,
+    "f_score_0.1": 0.40354880155736705,
+    "f_score_0.2": 0.8087069239780504,
+    "f_score_0.5": 1.0,
+    "psnr": 12.04263889501413,
+    "lpips": 0.2684129774570465,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 4.397,
+      "vertex_count": 40248,
+      "face_count": 80496,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "3D_Dollhouse_Happy_Brother",
+    "latency_s": 3.4502,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.05829734534009086,
+    "f_score_0.1": 0.9997999599919984,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 19.26899054303705,
+    "lpips": 0.10688827931880951,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.41,
+      "vertex_count": 40184,
+      "face_count": 80364,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "3D_Dollhouse_Sofa",
+    "latency_s": 3.4434,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.09812637011265543,
+    "f_score_0.1": 0.9315724804121498,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 18.722038369288597,
+    "lpips": 0.17058689892292023,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.404,
+      "vertex_count": 44592,
+      "face_count": 89172,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl",
+    "latency_s": 3.5805,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.20658772979381107,
+    "f_score_0.1": 0.6612295814648729,
+    "f_score_0.2": 0.884276670416198,
+    "f_score_0.5": 0.9994496973335335,
+    "psnr": 15.206383459310153,
+    "lpips": 0.1710740178823471,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.54,
+      "vertex_count": 92726,
+      "face_count": 185440,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "Android_Figure_Panda",
+    "latency_s": 3.491,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.12043004629712775,
+    "f_score_0.1": 0.8933759705077361,
+    "f_score_0.2": 0.9945201347343019,
+    "f_score_0.5": 1.0,
+    "psnr": 13.649770886303838,
+    "lpips": 0.24214276671409607,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.451,
+      "vertex_count": 57909,
+      "face_count": 115816,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "Animal_Planet_Foam_2Headed_Dragon",
+    "latency_s": 3.434,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.25131790375393037,
+    "f_score_0.1": 0.43664091227368207,
+    "f_score_0.2": 0.7559271859296481,
+    "f_score_0.5": 0.99000100999899,
+    "psnr": 8.371872966717373,
+    "lpips": 0.39693912863731384,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.391,
+      "vertex_count": 65104,
+      "face_count": 130184,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "Black_and_Decker_TR3500SD_2Slice_Toaster",
+    "latency_s": 3.6006,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.23613186159426397,
+    "f_score_0.1": 0.5286036508086636,
+    "f_score_0.2": 0.8183593501893247,
+    "f_score_0.5": 0.999549797408834,
+    "psnr": 12.29502014235365,
+    "lpips": 0.34681403636932373,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.56,
+      "vertex_count": 101497,
+      "face_count": 202990,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "Down_To_Earth_Orchid_Pot_Ceramic_Red",
+    "latency_s": 3.8118,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.20277849085041671,
+    "f_score_0.1": 0.559977810780117,
+    "f_score_0.2": 0.9047400263042525,
+    "f_score_0.5": 0.996185504918691,
+    "psnr": 13.844479512725362,
+    "lpips": 0.2742243707180023,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.77,
+      "vertex_count": 156266,
+      "face_count": 312518,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "Dog",
+    "latency_s": 3.6308,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.10002371316606734,
+    "f_score_0.1": 0.9135768388791594,
+    "f_score_0.2": 0.9970915655400662,
+    "f_score_0.5": 1.0,
+    "psnr": 14.012693518195324,
+    "lpips": 0.2671236991882324,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.59,
+      "vertex_count": 95508,
+      "face_count": 190848,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "TripoSR",
+    "sample_id": "Dino_3",
+    "latency_s": 3.3605,
+    "vram_peak_gb": 2.32,
+    "chamfer_distance": 0.06390571824111711,
+    "f_score_0.1": 0.96926397195298,
+    "f_score_0.2": 0.9998999899989999,
+    "f_score_0.5": 1.0,
+    "psnr": 16.099747677466347,
+    "lpips": 0.10591765493154526,
+    "metadata": {
+      "engine": "TripoSR",
+      "latency_s": 3.322,
+      "vertex_count": 19736,
+      "face_count": 39460,
+      "has_vertex_colors": true
+    }
+  }
+]

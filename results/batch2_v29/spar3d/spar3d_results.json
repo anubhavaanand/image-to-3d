@@ -1,0 +1,192 @@
+[
+  {
+    "engine": "SPAR3D",
+    "sample_id": "ASICS_GELLinksmaster_WhiteCoffeeSand",
+    "latency_s": 34.621,
+    "vram_peak_gb": 9.12,
+    "chamfer_distance": 0.1807492287016107,
+    "f_score_0.1": 0.6172079478722549,
+    "f_score_0.2": 0.9480814744602422,
+    "f_score_0.5": 1.0,
+    "psnr": 12.103929461821883,
+    "lpips": 0.26308733224868774,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 34.568,
+      "vertex_count": 26407,
+      "face_count": 40068,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "3D_Dollhouse_Happy_Brother",
+    "latency_s": 35.0348,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.06445839181059032,
+    "f_score_0.1": 0.9851103486778663,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 19.6745159182357,
+    "lpips": 0.11310245841741562,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 34.995,
+      "vertex_count": 12805,
+      "face_count": 19196,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "3D_Dollhouse_Sofa",
+    "latency_s": 37.832,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.07322147432846905,
+    "f_score_0.1": 0.9777951645880189,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 18.89514736939203,
+    "lpips": 0.17186224460601807,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 37.786,
+      "vertex_count": 17487,
+      "face_count": 27412,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl",
+    "latency_s": 37.48,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.13328266310816111,
+    "f_score_0.1": 0.8024856652781182,
+    "f_score_0.2": 0.9937393710691824,
+    "f_score_0.5": 1.0,
+    "psnr": 12.307774442143565,
+    "lpips": 0.22811700403690338,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 37.427,
+      "vertex_count": 29624,
+      "face_count": 46420,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "Android_Figure_Panda",
+    "latency_s": 37.991,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.08896114412714468,
+    "f_score_0.1": 0.9469513869844953,
+    "f_score_0.2": 0.9941661637497485,
+    "f_score_0.5": 1.0,
+    "psnr": 15.09075676207381,
+    "lpips": 0.22336596250534058,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 37.942,
+      "vertex_count": 22540,
+      "face_count": 36288,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "Animal_Planet_Foam_2Headed_Dragon",
+    "latency_s": 37.5178,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.2057549905183254,
+    "f_score_0.1": 0.5373074626865671,
+    "f_score_0.2": 0.8397781442341192,
+    "f_score_0.5": 0.999949997499875,
+    "psnr": 10.960868172492276,
+    "lpips": 0.3256857693195343,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 37.467,
+      "vertex_count": 28748,
+      "face_count": 40092,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "Black_and_Decker_TR3500SD_2Slice_Toaster",
+    "latency_s": 38.3195,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.1891264635270327,
+    "f_score_0.1": 0.6059896881905229,
+    "f_score_0.2": 0.9132384783320598,
+    "f_score_0.5": 1.0,
+    "psnr": 13.303689201710043,
+    "lpips": 0.35774296522140503,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 38.258,
+      "vertex_count": 40740,
+      "face_count": 63356,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "Down_To_Earth_Orchid_Pot_Ceramic_Red",
+    "latency_s": 38.4913,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.08995800186843578,
+    "f_score_0.1": 0.9304332312321995,
+    "f_score_0.2": 0.997444924557622,
+    "f_score_0.5": 1.0,
+    "psnr": 13.15537629951638,
+    "lpips": 0.2913168668746948,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 38.388,
+      "vertex_count": 68017,
+      "face_count": 88628,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "Dog",
+    "latency_s": 37.9226,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.10198600547736103,
+    "f_score_0.1": 0.8937407767532831,
+    "f_score_0.2": 0.990969174108269,
+    "f_score_0.5": 1.0,
+    "psnr": 13.678230753119376,
+    "lpips": 0.297872930765152,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 37.873,
+      "vertex_count": 27829,
+      "face_count": 41492,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "SPAR3D",
+    "sample_id": "Dino_3",
+    "latency_s": 37.3844,
+    "vram_peak_gb": 9.17,
+    "chamfer_distance": 0.06966664796253541,
+    "f_score_0.1": 0.9692729007633588,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 17.851881543974955,
+    "lpips": 0.08035101741552353,
+    "metadata": {
+      "engine": "SPAR3D",
+      "latency_s": 37.349,
+      "vertex_count": 7485,
+      "face_count": 10584,
+      "has_vertex_colors": true
+    }
+  }
+]

@@ -1,0 +1,123 @@
+=== BENCHMARK LOG START 2026-10-22 01:53:04.358175 ===
+HF_TOKEN configured ✅
+torch 2.11.0+cu128 (CUDA: 12.8)
+CUDA OK: Tesla T4 | 15.6 GB VRAM
+Config: NUM_SAMPLES=10 | numpy pinned: 2.1.3
+[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/750.4 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m102.4/750.4 kB[0m [31m3.3 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━[0m [32m471.0/750.4 kB[0m [31m6.8 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m747.5/750.4 kB[0m [31m8.8 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m750.4/750.4 kB[0m [31m7.1 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/23.8 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m2.3/23.8 MB[0m [31m76.2 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m6.8/23.8 MB[0m [31m99.7 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━━━[0m [32m11.5/23.8 MB[0m [31m125.8 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━[0m [32m18.3/23.8 MB[0m [31m162.3 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m23.8/23.8 MB[0m [31m240.5 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m23.8/23.8 MB[0m [31m240.5 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m23.8/23.8 MB[0m [31m240.5 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m23.8/23.8 MB[0m [31m79.4 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/56.3 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m56.3/56.3 kB[0m [31m2.9 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/1.0 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.0/1.0 MB[0m [31m44.7 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/1.0 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.0/1.0 MB[0m [31m42.6 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/53.8 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━[0m [32m30.7/53.8 kB[0m [31m44.1 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m53.8/53.8 kB[0m [31m815.3 kB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/67.8 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m67.8/67.8 kB[0m [31m2.4 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/1.2 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.1/1.2 MB[0m [31m4.7 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.3/1.2 MB[0m [31m4.6 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.5/1.2 MB[0m [31m4.6 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━[0m [32m0.6/1.2 MB[0m [31m4.6 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━[0m [32m0.8/1.2 MB[0m [31m4.7 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━[0m [32m1.0/1.2 MB[0m [31m4.7 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━[0m [32m1.2/1.2 MB[0m [31m4.8 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.2/1.2 MB[0m [31m4.4 MB/s[0m eta [36m0:00:00[0m
+[?25hSetting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
+/usr/local/lib/python3.13/dist-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/usr/local/lib/python3.13/dist-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+Downloading: "https://download.pytorch.org/models/vgg16-397923af.pth" to /root/.cache/torch/hub/checkpoints/vgg16-397923af.pth
+  0%|          | 0.00/528M [00:00<?, ?B/s]  3%|3         | 17.8M/528M [00:00<00:02, 185MB/s]  7%|6         | 35.5M/528M [00:00<00:02, 178MB/s] 11%|#         | 57.5M/528M [00:00<00:02, 201MB/s] 15%|#4        | 78.5M/528M [00:00<00:02, 208MB/s] 19%|#9        | 100M/528M [00:00<00:02, 215MB/s]  23%|##3       | 122M/528M [00:00<00:01, 220MB/s] 27%|##7       | 145M/528M [00:00<00:01, 225MB/s] 32%|###1      | 167M/528M [00:00<00:01, 226MB/s] 36%|###5      | 189M/528M [00:00<00:01, 228MB/s] 40%|####      | 212M/528M [00:01<00:01, 231MB/s] 44%|####4     | 234M/528M [00:01<00:01, 231MB/s] 49%|####8     | 256M/528M [00:01<00:01, 232MB/s] 53%|#####2    | 278M/528M [00:01<00:01, 233MB/s] 57%|#####6    | 301M/528M [00:01<00:01, 228MB/s] 61%|######1   | 322M/528M [00:01<00:00, 228MB/s] 65%|######5   | 344M/528M [00:01<00:00, 228MB/s] 69%|######9   | 366M/528M [00:01<00:00, 228MB/s] 74%|#######3  | 388M/528M [00:01<00:00, 226MB/s] 78%|#######7  | 410M/528M [00:01<00:00, 229MB/s] 82%|########1 | 432M/528M [00:02<00:00, 228MB/s] 86%|########6 | 454M/528M [00:02<00:00, 230MB/s] 90%|######### | 477M/528M [00:02<00:00, 231MB/s] 95%|#########4| 500M/528M [00:02<00:00, 234MB/s] 99%|#########8| 522M/528M [00:02<00:00, 231MB/s]100%|##########| 528M/528M [00:02<00:00, 225MB/s]
+Loading model from: /usr/local/lib/python3.13/dist-packages/lpips/weights/v0.1/vgg.pth
+Downloading data from 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx' to file '/root/.rembg/models/isnet-general-use/isnet-general-use.onnx'.
+=== CELL 3 GATE: PASS (LPIPS + ISNet cached) ✅ ===
+code cloned fresh @ ae6abafb9aa7 — all 4 engines imported OK ✅ (sha recorded in outputs/code_sha.txt)
+ingested 10 objects into /kaggle/working/data/gso
+[GSO Loader] using explicit object_ids (10): ['ASICS_GELLinksmaster_WhiteCoffeeSand', '3D_Dollhouse_Happy_Brother', '3D_Dollhouse_Sofa', 'Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl', 'Android_Figure_Panda', 'Animal_Planet_Foam_2Headed_Dragon', 'Black_and_Decker_TR3500SD_2Slice_Toaster', 'Down_To_Earth_Orchid_Pot_Ceramic_Red', 'Dog', 'Dino_3']
+[GSO Loader] Loaded 10 samples from /kaggle/working/data/gso.
+GSO ready: rendered 10 upright RGBA views | loaded 10/10 canonical samples ✅
+[GSO Loader] using explicit object_ids (10): ['ASICS_GELLinksmaster_WhiteCoffeeSand', '3D_Dollhouse_Happy_Brother', '3D_Dollhouse_Sofa', 'Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl', 'Android_Figure_Panda', 'Animal_Planet_Foam_2Headed_Dragon', 'Black_and_Decker_TR3500SD_2Slice_Toaster', 'Down_To_Earth_Orchid_Pot_Ceramic_Red', 'Dog', 'Dino_3']
+[GSO Loader] Loaded 10 samples from /kaggle/working/data/gso.
+GSO ready: rendered 0 upright RGBA views | loaded 10/10 canonical samples ✅
+[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/450.7 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m30.7/450.7 kB[0m [31m1.7 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m41.0/450.7 kB[0m [31m547.3 kB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m92.2/450.7 kB[0m [31m1.0 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m153.6/450.7 kB[0m [31m1.1 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━[0m [32m235.5/450.7 kB[0m [31m1.5 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━[0m [32m399.4/450.7 kB[0m [31m2.0 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m450.7/450.7 kB[0m [31m2.0 MB/s[0m eta [36m0:00:00[0m
+[?25h[TripoSR] Loading stabilityai/TripoSR …
+[TripoSR] Remapped 192 transformers-4.x ViT keys to current naming.
+[TripoSR] Model loaded (using verified scikit-image CPU Marching Cubes).
+[TripoSR] 01:57:48 Starting run...
+[GSO Loader] using explicit object_ids (10): ['ASICS_GELLinksmaster_WhiteCoffeeSand', '3D_Dollhouse_Happy_Brother', '3D_Dollhouse_Sofa', 'Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl', 'Android_Figure_Panda', 'Animal_Planet_Foam_2Headed_Dragon', 'Black_and_Decker_TR3500SD_2Slice_Toaster', 'Down_To_Earth_Orchid_Pot_Ceramic_Red', 'Dog', 'Dino_3']
+[GSO Loader] Loaded 10 samples from /kaggle/working/data/gso.
+
+============================================================
+  Evaluating: TripoSR
+============================================================
+  [TripoSR] (1/10) ASICS_GELLinksmaster_WhiteCoffeeSand ... [TripoSR] Inference done in 4.40s (40248 verts)
+Setting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
+/usr/local/lib/python3.13/dist-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/usr/local/lib/python3.13/dist-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+Loading model from: /usr/local/lib/python3.13/dist-packages/lpips/weights/v0.1/vgg.pth
+CD=0.2559  F@0.2=0.809  PSNR=12.04dB  t=4.44s  VRAM=2.32GB
+  [TripoSR] (2/10) 3D_Dollhouse_Happy_Brother ... [TripoSR] Inference done in 3.41s (40184 verts)
+CD=0.0583  F@0.2=1.000  PSNR=19.27dB  t=3.45s  VRAM=2.32GB
+  [TripoSR] (3/10) 3D_Dollhouse_Sofa ... [TripoSR] Inference done in 3.40s (44592 verts)
+CD=0.0981  F@0.2=1.000  PSNR=18.72dB  t=3.44s  VRAM=2.32GB
+  [TripoSR] (4/10) Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl ... [TripoSR] Inference done in 3.54s (92726 verts)
+CD=0.2066  F@0.2=0.884  PSNR=15.21dB  t=3.58s  VRAM=2.32GB
+  [TripoSR] (5/10) Android_Figure_Panda ... [TripoSR] Inference done in 3.45s (57909 verts)
+CD=0.1204  F@0.2=0.995  PSNR=13.65dB  t=3.49s  VRAM=2.32GB
+  [TripoSR] (6/10) Animal_Planet_Foam_2Headed_Dragon ... [TripoSR] Inference done in 3.39s (65104 verts)
+CD=0.2513  F@0.2=0.756  PSNR=8.37dB  t=3.43s  VRAM=2.32GB
+  [TripoSR] (7/10) Black_and_Decker_TR3500SD_2Slice_Toaster ... [TripoSR] Inference done in 3.56s (101497 verts)
+CD=0.2361  F@0.2=0.818  PSNR=12.30dB  t=3.60s  VRAM=2.32GB
+  [TripoSR] (8/10) Down_To_Earth_Orchid_Pot_Ceramic_Red ... [TripoSR] Inference done in 3.77s (156266 verts)
+CD=0.2028  F@0.2=0.905  PSNR=13.84dB  t=3.81s  VRAM=2.32GB
+  [TripoSR] (9/10) Dog ... [TripoSR] Inference done in 3.59s (95508 verts)
+CD=0.1000  F@0.2=0.997  PSNR=14.01dB  t=3.63s  VRAM=2.32GB
+  [TripoSR] (10/10) Dino_3 ... [TripoSR] Inference done in 3.32s (19736 verts)
+CD=0.0639  F@0.2=1.000  PSNR=16.10dB  t=3.36s  VRAM=2.32GB
+[BenchmarkRunner] Results saved to /kaggle/working/outputs/triposr/triposr_results.json
+[TripoSR] 01:59:50 COMPLETE ✅
+[BenchmarkRunner] Results saved to /kaggle/working/outputs/triposr_results.json
+[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/3.2 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.1/3.2 MB[0m [31m3.5 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.4/3.2 MB[0m [31m6.4 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.3/3.2 MB[0m [31m12.8 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m3.2/3.2 MB[0m [31m25.0 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m3.2/3.2 MB[0m [31m20.5 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/43.3 kB[0m [31m?[0m eta [36m-:--:--[0m[2K     [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━[0m [32m41.0/43.3 kB[0m [31m2.0 MB/s[0m eta [36m0:00:01[0m[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m43.3/43.3 kB[0m [31m1.0 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/41.6 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m41.6/41.6 kB[0m [31m1.3 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/216.9 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m71.7/216.9 kB[0m [31m2.8 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━[0m [32m102.4/216.9 kB[0m [31m1.5 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m215.0/216.9 kB[0m [31m2.4 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m216.9/216.9 kB[0m [31m2.0 MB/s[0m eta [36m0:00:00[0m
+[?25h  Preparing metadata (setup.py) ... [?25l[?25hdone
+  Building wheel for diff_gaussian_rasterization (setup.py) ... [?25l[?25hdone
+[LGM] Installed PyTorch SDPA shim for xformers.ops.memory_efficient_attention ✅
+/kaggle/working/LGM/core/attention.py:22: UserWarning: xFormers is available (Attention)
+  warnings.warn("xFormers is available (Attention)")
+[LGM] Loading U-Net from ashawkey/LGM …
+Downloading: "https://github.com/richzhang/PerceptualSimilarity/raw/master/lpips/weights/v0.1/vgg.pth" to /root/.cache/torch/hub/checkpoints/vgg.pth
+  0%|          | 0.00/7.12k [00:00<?, ?B/s]100%|##########| 7.12k/7.12k [00:00<00:00, 10.6MB/s]
+[LGM] Loading ImageDream multi-view diffusion …
+/usr/local/lib/python3.13/dist-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
+  deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
+Expected types for unet: (<class 'mvdream.mv_unet.MultiViewUNetModel'>,), got <class 'diffusers_modules.local.mv_unet.MultiViewUNetModel'>.
+[LGM] Model loaded.
+[LGM] 02:02:11 Starting run...
+[GSO Loader] using explicit object_ids (10): ['ASICS_GELLinksmaster_WhiteCoffeeSand', '3D_Dollhouse_Happy_Brother', '3D_Dollhouse_Sofa', 'Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl', 'Android_Figure_Panda', 'Animal_Planet_Foam_2Headed_Dragon', 'Black_and_Decker_TR3500SD_2Slice_Toaster', 'Down_To_Earth_Orchid_Pot_Ceramic_Red', 'Dog', 'Dino_3']
+[GSO Loader] Loaded 10 samples from /kaggle/working/data/gso.
+
+============================================================
+  Evaluating: LGM
+============================================================
+  [LGM] (1/10) ASICS_GELLinksmaster_WhiteCoffeeSand ... CD=0.2502  F@0.2=0.816  PSNR=9.74dB  t=12.71s  VRAM=5.19GB
+  [LGM] (2/10) 3D_Dollhouse_Happy_Brother ... CD=0.0920  F@0.2=0.996  PSNR=15.27dB  t=10.55s  VRAM=5.19GB
+  [LGM] (3/10) 3D_Dollhouse_Sofa ... CD=0.1119  F@0.2=0.993  PSNR=13.53dB  t=10.22s  VRAM=5.19GB
+  [LGM] (4/10) Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl ... CD=0.0577  F@0.2=1.000  PSNR=15.51dB  t=11.07s  VRAM=5.19GB
+  [LGM] (5/10) Android_Figure_Panda ... CD=0.0941  F@0.2=0.983  PSNR=10.72dB  t=13.61s  VRAM=5.19GB
+  [LGM] (6/10) Animal_Planet_Foam_2Headed_Dragon ... CD=0.2864  F@0.2=0.695  PSNR=8.68dB  t=11.71s  VRAM=5.19GB
+  [LGM] (7/10) Black_and_Decker_TR3500SD_2Slice_Toaster ... CD=0.1768  F@0.2=0.918  PSNR=11.75dB  t=13.13s  VRAM=5.19GB
+  [LGM] (8/10) Down_To_Earth_Orchid_Pot_Ceramic_Red ... CD=0.0934  F@0.2=0.976  PSNR=13.49dB  t=12.54s  VRAM=5.19GB
+  [LGM] (9/10) Dog ... CD=0.1075  F@0.2=0.997  PSNR=12.87dB  t=13.91s  VRAM=5.19GB
+  [LGM] (10/10) Dino_3 ... CD=0.0771  F@0.2=0.999  PSNR=15.80dB  t=9.70s  VRAM=5.19GB
+[BenchmarkRunner] Results saved to /kaggle/working/outputs/lgm/lgm_results.json
+[LGM] 02:06:18 COMPLETE ✅
+[BenchmarkRunner] Results saved to /kaggle/working/outputs/lgm_results.json
+=== UNIFIED BENCHMARK RESULTS (mean +/- std) ===
+        latency_s         vram_peak_gb      chamfer_distance         f_score_0.1         f_score_0.2         f_score_0.5             psnr          lpips        
+             mean     std         mean  std             mean     std        mean     std        mean     std        mean     std     mean     std   mean     std
+engine                                                                                                                                                          
+LGM       11.9139  1.4812         5.19  0.0           0.1347  0.0773      0.7838  0.2176      0.9373  0.1028      0.9988  0.0038  12.7359  2.4748  0.298  0.0996
+TripoSR    3.6238  0.3131         2.32  0.0           0.1593  0.0788      0.7298  0.2352      0.9164  0.0953      0.9985  0.0032  14.3514  3.2189  0.235  0.0965
+saved: unified_results.csv, unified_table.tex, pareto_frontier.png ✅
+=== UNIFIED BENCHMARK RESULTS (mean +/- std) ===
+        latency_s         vram_peak_gb      chamfer_distance         f_score_0.1         f_score_0.2         f_score_0.5             psnr          lpips        
+             mean     std         mean  std             mean     std        mean     std        mean     std        mean     std     mean     std   mean     std
+engine                                                                                                                                                          
+LGM       11.9139  1.4812         5.19  0.0           0.1347  0.0773      0.7838  0.2176      0.9373  0.1028      0.9988  0.0038  12.7359  2.4748  0.298  0.0996
+TripoSR    3.6238  0.3131         2.32  0.0           0.1593  0.0788      0.7298  0.2352      0.9164  0.0953      0.9985  0.0032  14.3514  3.2189  0.235  0.0965
+saved: unified_results.csv, unified_table.tex, pareto_frontier.png ✅
+saved outputs: ['benchmark_log.txt', 'code_sha.txt', 'lgm', 'lgm_results.json', 'pareto_frontier.png', 'triposr', 'triposr_results.json', 'unified_results.csv', 'unified_table.tex']

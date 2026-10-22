@@ -1,0 +1,222 @@
+[
+  {
+    "engine": "LGM",
+    "sample_id": "ASICS_GELLinksmaster_WhiteCoffeeSand",
+    "latency_s": 12.7142,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.25023636563422547,
+    "f_score_0.1": 0.4192259963768116,
+    "f_score_0.2": 0.8162799878530216,
+    "f_score_0.5": 1.0,
+    "psnr": 9.744053461171319,
+    "lpips": 0.34853407740592957,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 12.673,
+      "latency_mv_s": 6.49,
+      "latency_unet_s": 0.243,
+      "gaussian_count": 65536,
+      "vertex_count": 365728,
+      "face_count": 734948,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "3D_Dollhouse_Happy_Brother",
+    "latency_s": 10.5474,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.09198987692962407,
+    "f_score_0.1": 0.9012796680497924,
+    "f_score_0.2": 0.9963977418707347,
+    "f_score_0.5": 1.0,
+    "psnr": 15.265958497326553,
+    "lpips": 0.20094051957130432,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 10.514,
+      "latency_mv_s": 6.098,
+      "latency_unet_s": 0.039,
+      "gaussian_count": 65536,
+      "vertex_count": 292375,
+      "face_count": 589170,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "3D_Dollhouse_Sofa",
+    "latency_s": 10.2175,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.11190096581304385,
+    "f_score_0.1": 0.8500892507761701,
+    "f_score_0.2": 0.9929999899295066,
+    "f_score_0.5": 1.0,
+    "psnr": 13.528621116302348,
+    "lpips": 0.28093305230140686,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 10.184,
+      "latency_mv_s": 6.162,
+      "latency_unet_s": 0.04,
+      "gaussian_count": 65536,
+      "vertex_count": 227661,
+      "face_count": 457046,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl",
+    "latency_s": 11.0715,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.05765768540022154,
+    "f_score_0.1": 0.9780239251572005,
+    "f_score_0.2": 1.0,
+    "f_score_0.5": 1.0,
+    "psnr": 15.509167741973261,
+    "lpips": 0.2150115966796875,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 11.038,
+      "latency_mv_s": 6.251,
+      "latency_unet_s": 0.041,
+      "gaussian_count": 65536,
+      "vertex_count": 285506,
+      "face_count": 573916,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "Android_Figure_Panda",
+    "latency_s": 13.6063,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.09411956921439721,
+    "f_score_0.1": 0.9165815195518573,
+    "f_score_0.2": 0.9829646580218663,
+    "f_score_0.5": 1.0,
+    "psnr": 10.719137142513542,
+    "lpips": 0.40445300936698914,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 13.572,
+      "latency_mv_s": 6.32,
+      "latency_unet_s": 0.041,
+      "gaussian_count": 65536,
+      "vertex_count": 514574,
+      "face_count": 1036164,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "Animal_Planet_Foam_2Headed_Dragon",
+    "latency_s": 11.7078,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.2864056705731788,
+    "f_score_0.1": 0.380629747759016,
+    "f_score_0.2": 0.6951005434062292,
+    "f_score_0.5": 0.9879054703709327,
+    "psnr": 8.682148521066463,
+    "lpips": 0.38392579555511475,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 11.674,
+      "latency_mv_s": 6.361,
+      "latency_unet_s": 0.041,
+      "gaussian_count": 65536,
+      "vertex_count": 359879,
+      "face_count": 723350,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "Black_and_Decker_TR3500SD_2Slice_Toaster",
+    "latency_s": 13.1283,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.17676549576329628,
+    "f_score_0.1": 0.6785418048422598,
+    "f_score_0.2": 0.9175673825794555,
+    "f_score_0.5": 1.0,
+    "psnr": 11.748238449163416,
+    "lpips": 0.4144713282585144,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 13.094,
+      "latency_mv_s": 6.474,
+      "latency_unet_s": 0.042,
+      "gaussian_count": 65536,
+      "vertex_count": 455713,
+      "face_count": 914842,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "Down_To_Earth_Orchid_Pot_Ceramic_Red",
+    "latency_s": 12.5426,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.09340389563857844,
+    "f_score_0.1": 0.9073760789690155,
+    "f_score_0.2": 0.9764061620349045,
+    "f_score_0.5": 1.0,
+    "psnr": 13.488364158785487,
+    "lpips": 0.3351525664329529,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 12.509,
+      "latency_mv_s": 6.568,
+      "latency_unet_s": 0.043,
+      "gaussian_count": 65536,
+      "vertex_count": 431802,
+      "face_count": 868340,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "Dog",
+    "latency_s": 13.9051,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.10745578234114504,
+    "f_score_0.1": 0.8697089330880662,
+    "f_score_0.2": 0.9969478910677566,
+    "f_score_0.5": 1.0,
+    "psnr": 12.873215061926652,
+    "lpips": 0.289920836687088,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 13.871,
+      "latency_mv_s": 6.62,
+      "latency_unet_s": 0.042,
+      "gaussian_count": 65536,
+      "vertex_count": 549355,
+      "face_count": 1105030,
+      "has_vertex_colors": true
+    }
+  },
+  {
+    "engine": "LGM",
+    "sample_id": "Dino_3",
+    "latency_s": 9.6983,
+    "vram_peak_gb": 5.19,
+    "chamfer_distance": 0.07713251646850301,
+    "f_score_0.1": 0.9370130481169316,
+    "f_score_0.2": 0.9987484355444306,
+    "f_score_0.5": 1.0,
+    "psnr": 15.800085177030617,
+    "lpips": 0.10715588927268982,
+    "metadata": {
+      "engine": "LGM",
+      "latency_s": 9.664,
+      "latency_mv_s": 6.607,
+      "latency_unet_s": 0.042,
+      "gaussian_count": 65536,
+      "vertex_count": 99532,
+      "face_count": 200256,
+      "has_vertex_colors": true
+    }
+  }
+]

@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\centering
+\caption{Unified Empirical Benchmark on Google Scanned Objects (GSO) --- measured on NVIDIA Tesla T4 (15.6\,GB VRAM) under a single locked upright protocol ($n=10$ canonical objects, 40 evaluations). Best per column in \textbf{bold}, second best \underline{underlined}.}
+\label{tab:unified_comparison}
+{\renewcommand{\arraystretch}{1.25}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcccccccccccl}
+\toprule
+\textbf{Method} & \textbf{Paradigm} & $n$ & \textbf{Lat.\,(s)} $\downarrow$ & \textbf{VRAM\,(GB)} $\downarrow$ & \textbf{CD} $\downarrow$ & \textbf{F@0.1} $\uparrow$ & \textbf{F@0.2} $\uparrow$ & \textbf{F@0.5} $\uparrow$ & \textbf{PSNR\,(dB)} $\uparrow$ & \textbf{LPIPS} $\downarrow$ & \textbf{Vertices $|V|$} & \textbf{Faces $|F|$} & \textbf{Representation} \\
+\midrule
+\textbf{TripoSR} \cite{triposr2024} & Triplane NeRF & 10/10 & $\mathbf{3.62 \pm 0.31}$ & $\mathbf{2.32 \pm 0.00}$ & $0.1593 \pm 0.0788$ & $0.7298 \pm 0.2352$ & $0.9164 \pm 0.0953$ & $0.9985 \pm 0.0032$ & $14.35 \pm 3.22$ & \underline{$0.2350 \pm 0.0965$} & \underline{$71.4 \pm 40.4\text{K}$} & \underline{$142.7 \pm 80.8\text{K}$} & .glb ($256^3$ MC) \\
+\textbf{LGM} \cite{lgm2024} & 3D Gaussians & 10/10 & \underline{$11.91 \pm 1.48$} & \underline{$5.19 \pm 0.00$} & $0.1347 \pm 0.0773$ & $0.7838 \pm 0.2176$ & $0.9373 \pm 0.1028$ & $0.9988 \pm 0.0038$ & $12.74 \pm 2.47$ & $0.2981 \pm 0.0996$ & $358.2 \pm 137.3\text{K}$ & $720.3 \pm 276.1\text{K}$ & .ply (3DGS) / .obj \\
+\textbf{SPAR3D} \cite{spar3d2025} & Point + DMTet & 10/10 & $37.26 \pm 1.33$ & $9.17 \pm 0.02$ & \underline{$0.1197 \pm 0.0537$} & \underline{$0.8266 \pm 0.1748$} & \underline{$0.9677 \pm 0.0534$} & $\mathbf{1.0000 \pm 0.0000}$ & \underline{$14.70 \pm 3.06$} & $0.2353 \pm 0.0908$ & $\mathbf{28.2 \pm 16.9\text{K}}$ & $\mathbf{41.4 \pm 22.1\text{K}}$ & .glb (DMTet + PBR) \\
+\textbf{TRELLIS} \cite{trellis2024} & SLAT Flow & 10/10 & $28.28 \pm 9.27$ & $6.68 \pm 0.69$ & $\mathbf{0.0792 \pm 0.0309}$ & $\mathbf{0.9481 \pm 0.0933}$ & $\mathbf{0.9892 \pm 0.0233}$ & $\mathbf{1.0000 \pm 0.0000}$ & $\mathbf{15.70 \pm 2.46}$ & $\mathbf{0.1910 \pm 0.0646}$ & $398.2 \pm 242.9\text{K}$ & $796.5 \pm 485.9\text{K}$ & .glb (FlexiCubes) \\
+\bottomrule
+\end{tabular}%
+}}
+\end{table*}
