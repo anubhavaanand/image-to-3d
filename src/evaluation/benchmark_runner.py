@@ -48,6 +48,33 @@ class GSOSample:
     gt_colors: Optional[np.ndarray] = None
 
 
+def _ensure_pyopengl_compat() -> None:
+    """
+    Fix PyOpenGL 3.1.0 compatibility on Python 3.12+ / 3.13 where
+    ctypes.byref(...) (_ctypes.CArgObject) is not matched in ArrayDatatype.getRegistry(),
+    causing glGenTextures(1) (used by pyrender UV texture uploads) to raise:
+    `TypeError: No array-type handler for type _ctypes.type (value: <cparam 'P'>) registered`.
+    """
+    try:
+        import ctypes
+        from OpenGL.arrays import arraydatatype, ctypesparameters
+
+        cparam_type = type(ctypes.byref(ctypes.c_uint(0)))
+        reg = arraydatatype.ArrayDatatype.getRegistry()
+        if cparam_type not in reg:
+            handler = ctypesparameters.CtypesParameterHandler()
+            reg[cparam_type] = handler
+            try:
+                reg.register(handler, [cparam_type])
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+_ensure_pyopengl_compat()
+
+
 def _find_gso_texture_image(tm, mesh_path: Optional[str | Path] = None) -> Optional[Image.Image]:
     vis = getattr(tm, "visual", None)
     mat = getattr(vis, "material", None) if vis is not None else None
@@ -95,7 +122,10 @@ def bake_texture_to_vertices(tm, mesh_path: Optional[str | Path] = None):
     img = _find_gso_texture_image(tm, mesh_path=mesh_path)
 
     if uv is None or len(uv) != len(tm.vertices) or img is None:
-        return tm.visual.to_color()
+        return trimesh.visual.ColorVisuals(
+            mesh=tm,
+            vertex_colors=np.full((len(tm.vertices), 4), 200, dtype=np.uint8),
+        )
 
     im = np.asarray(img.convert("RGBA"), dtype=np.float32)
     h, w = im.shape[:2]
@@ -438,6 +468,7 @@ def render_novel_view_same_bg(
     already_normalized: bool = False,
 ) -> Optional[np.ndarray]:
     try:
+        _ensure_pyopengl_compat()
         import trimesh
         import pyrender
 
@@ -536,6 +567,7 @@ def render_gso_mesh_view(
 ) -> Optional[np.ndarray]:
     """Render a GSO ground-truth mesh preserving its native 4096x4096 UV texture map."""
     try:
+        _ensure_pyopengl_compat()
         import trimesh
         import pyrender
 
