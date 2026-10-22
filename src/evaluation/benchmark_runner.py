@@ -416,6 +416,18 @@ def make_camera_pose(azimuth_deg: float, elevation_deg: float = 15.0, distance: 
     return pose
 
 
+def _add_three_point_lights(scene, azimuth_deg: float, elevation_deg: float, distance: float) -> np.ndarray:
+    import pyrender
+
+    key_pose = make_camera_pose(azimuth_deg, elevation_deg, distance)
+    fill_pose = make_camera_pose(azimuth_deg - 55.0, elevation_deg + 10.0, distance)
+    rim_pose = make_camera_pose(azimuth_deg + 145.0, elevation_deg + 25.0, distance)
+    scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=0.85), pose=key_pose)
+    scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=0.35), pose=fill_pose)
+    scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=0.25), pose=rim_pose)
+    return key_pose
+
+
 def render_novel_view_same_bg(
     mesh: Mesh3D,
     azimuth_deg: float = 65.0,
@@ -436,8 +448,16 @@ def render_novel_view_same_bg(
         else:
             verts = raw_v
 
+        uv_coords = getattr(mesh, "uv_coords", None)
+        tex_map = getattr(mesh, "texture_map", None)
+        use_native_uv = (
+            uv_coords is not None
+            and tex_map is not None
+            and len(uv_coords) == len(verts)
+        )
+
         vc_lin = None
-        if mesh.vertex_colors is not None and len(mesh.vertex_colors) == len(verts):
+        if not use_native_uv and mesh.vertex_colors is not None and len(mesh.vertex_colors) == len(verts):
             vc = np.asarray(mesh.vertex_colors, dtype=np.float32)[:, :3]
             if vc.max() > 1.05:
                 vc = vc / 255.0
@@ -458,29 +478,38 @@ def render_novel_view_same_bg(
         except Exception:
             pass
 
-        pm = pyrender.Mesh.from_trimesh(tm, smooth=False)
-        for p in pm.primitives:
-            if vc_lin is not None and len(tm.faces) > 0:
-                p.color_0 = vc_lin[tm.faces].reshape((-1, 3))
-            if p.material is not None:
-                p.material.baseColorFactor = np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float32)
-                p.material.metallicFactor = 0.0
-                p.material.roughnessFactor = 1.0
-                p.material.alphaMode = "OPAQUE"
-                p.material.doubleSided = True
+        if use_native_uv:
+            tm.visual = trimesh.visual.TextureVisuals(uv=np.asarray(uv_coords, dtype=np.float32), image=tex_map)
+            mat = pyrender.MetallicRoughnessMaterial(
+                baseColorFactor=[1.0, 1.0, 1.0, 1.0],
+                baseColorTexture=tex_map.convert("RGBA") if hasattr(tex_map, "convert") else tex_map,
+                metallicFactor=0.0,
+                roughnessFactor=1.0,
+                alphaMode="OPAQUE",
+                doubleSided=True,
+            )
+            pm = pyrender.Mesh.from_trimesh(tm, material=mat, smooth=False)
+        else:
+            pm = pyrender.Mesh.from_trimesh(tm, smooth=False)
+            for p in pm.primitives:
+                if vc_lin is not None and len(tm.faces) > 0:
+                    p.color_0 = vc_lin[tm.faces].reshape((-1, 3))
+                if p.material is not None:
+                    p.material.baseColorFactor = np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float32)
+                    p.material.metallicFactor = 0.0
+                    p.material.roughnessFactor = 1.0
+                    p.material.alphaMode = "OPAQUE"
+                    p.material.doubleSided = True
 
         scene = pyrender.Scene(
-            ambient_light=np.array([0.55, 0.55, 0.55]),
+            ambient_light=np.array([0.45, 0.45, 0.45]),
             bg_color=np.array([1.0, 1.0, 1.0, 1.0] if white_bg else [0.0, 0.0, 0.0, 1.0]),
         )
         scene.add(pm)
 
-        camera_pose = make_camera_pose(azimuth_deg, elevation_deg, distance)
+        camera_pose = _add_three_point_lights(scene, azimuth_deg, elevation_deg, distance)
         camera = pyrender.PerspectiveCamera(yfov=np.radians(49.1))
         scene.add(camera, pose=camera_pose)
-
-        light = pyrender.DirectionalLight(color=np.ones(3), intensity=1.0)
-        scene.add(light, pose=camera_pose)
 
         r = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
         color, depth = r.render(scene, flags=pyrender.RenderFlags.SKIP_CULL_FACES)
@@ -560,14 +589,13 @@ def render_gso_mesh_view(
             return np.concatenate([rgb, alpha], axis=-1)
 
         scene = pyrender.Scene(
-            ambient_light=np.array([0.55, 0.55, 0.55]),
+            ambient_light=np.array([0.45, 0.45, 0.45]),
             bg_color=np.array([1.0, 1.0, 1.0, 1.0]),
         )
         scene.add(pm)
 
-        camera_pose = make_camera_pose(azimuth_deg, elevation_deg, distance)
+        camera_pose = _add_three_point_lights(scene, azimuth_deg, elevation_deg, distance)
         scene.add(pyrender.PerspectiveCamera(yfov=np.radians(49.1)), pose=camera_pose)
-        scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=1.0), pose=camera_pose)
 
         r = pyrender.OffscreenRenderer(resolution * 2, resolution * 2)
         color, depth = r.render(scene, flags=pyrender.RenderFlags.SKIP_CULL_FACES)
@@ -696,29 +724,40 @@ class BenchmarkRunner:
                         aligned_for_render if aligned_for_render is not None else recon.mesh
                     )
                     if render_target is not None:
-                        pred_render = render_novel_view_same_bg(
+                        pred_render_hi = render_novel_view_same_bg(
                             render_target,
                             azimuth_deg=65.0,
                             elevation_deg=15.0,
-                            resolution=256,
+                            resolution=512,
                             white_bg=True,
                             already_normalized=(aligned_for_render is not None),
                         )
-                        gt_render = None
+                        gt_render_hi = None
                         if sample.gt_mesh_path and sample.gt_mesh_path.exists():
-                            gt_render = self._render_gt_novel(
+                            gt_render_hi = self._render_gt_novel(
                                 sample.gt_mesh_path,
                                 azimuth_deg=65.0,
                                 elevation_deg=15.0,
-                                resolution=256,
+                                resolution=512,
                             )
-                        if gt_render is None and sample.gt_novel_Views:
+                        if gt_render_hi is None and sample.gt_novel_Views:
                             gt_img = (
                                 Image.open(sample.gt_novel_Views[0])
                                 .convert("RGB")
-                                .resize((256, 256))
+                                .resize((512, 512), Image.LANCZOS)
                             )
-                            gt_render = np.array(gt_img)
+                            gt_render_hi = np.array(gt_img)
+
+                        pred_render = (
+                            np.array(Image.fromarray(pred_render_hi).resize((256, 256), Image.LANCZOS))
+                            if pred_render_hi is not None
+                            else None
+                        )
+                        gt_render = (
+                            np.array(Image.fromarray(gt_render_hi).resize((256, 256), Image.LANCZOS))
+                            if gt_render_hi is not None
+                            else None
+                        )
 
                         if pred_render is not None and gt_render is not None:
                             row["psnr"] = compute_psnr(pred_render, gt_render)
@@ -727,12 +766,12 @@ class BenchmarkRunner:
                             row["psnr"] = np.nan
                             row["lpips"] = np.nan
 
-                        if pred_render is not None:
+                        if pred_render_hi is not None:
                             qdir = self.output_dir / "qualitative" / sample.sample_id
                             qdir.mkdir(parents=True, exist_ok=True)
-                            Image.fromarray(pred_render).save(qdir / f"{engine_name}_novel.png")
-                            if gt_render is not None and not (qdir / "gt_novel.png").exists():
-                                Image.fromarray(gt_render).save(qdir / "gt_novel.png")
+                            Image.fromarray(pred_render_hi).save(qdir / f"{engine_name}_novel.png")
+                            if gt_render_hi is not None and not (qdir / "gt_novel.png").exists():
+                                Image.fromarray(gt_render_hi).save(qdir / "gt_novel.png")
                             if not (qdir / "input.png").exists():
                                 _bg_w = Image.new("RGBA", clean_img.size, (255, 255, 255, 255))
                                 Image.alpha_composite(_bg_w, clean_img.convert("RGBA")).convert("RGB").save(

@@ -251,6 +251,24 @@ class Spar3dEngine(AbstractEngine):
         faces = np.asarray(tm.faces, dtype=np.int64)
         vcols = self._extract_spar3d_vertex_colors(tm, verts)
 
+        uv_coords = None
+        tex_map = None
+        try:
+            vis = getattr(tm, "visual", None)
+            if vis is not None and getattr(vis, "uv", None) is not None:
+                uv = np.asarray(vis.uv, dtype=np.float32)
+                if len(uv) == len(verts):
+                    uv_coords = uv
+            mat = getattr(vis, "material", None) if vis is not None else None
+            if mat is not None:
+                img = getattr(mat, "baseColorTexture", None) or getattr(mat, "image", None)
+                if isinstance(img, Image.Image):
+                    tex_map = img.copy()
+                elif isinstance(img, np.ndarray):
+                    tex_map = Image.fromarray(img)
+        except Exception:
+            pass
+
         # Note: spar3d/system.py:705-707 & 915 ALREADY applies output_rotation = Ry(90) @ Rx(-90)
         # to tmesh inside run_image(), placing vertices in OpenGL Y-up (+Y up, +Z front).
         # Do NOT apply a second Rx(-90) rotation here.
@@ -261,6 +279,8 @@ class Spar3dEngine(AbstractEngine):
             vertices=verts,
             faces=faces,
             vertex_colors=vcols,
+            uv_coords=uv_coords,
+            texture_map=tex_map,
         )
         torch.cuda.empty_cache()
 
