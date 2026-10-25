@@ -240,7 +240,7 @@ class LGMEngine(AbstractEngine):
             opa_all = np.asarray(gaussians.opacities, dtype=np.float32).reshape(-1)
             rgb_all = np.clip(np.asarray(gaussians.sh_coeffs, dtype=np.float32), 0.0, 1.0)
 
-            valid = opa_all > 0.18
+            valid = opa_all > 0.10
             if valid.sum() < 200:
                 valid = opa_all > 0.08
             if valid.sum() < 100:
@@ -276,7 +276,7 @@ class LGMEngine(AbstractEngine):
                 accumulate=True,
             )
 
-            _k, _sigma = 5, 0.95
+            _k, _sigma = 7, 1.10
             _ax = torch.arange(_k, dtype=torch.float32) - (_k - 1) / 2.0
             _g = torch.exp(-(_ax ** 2) / (2.0 * (_sigma ** 2)))
             _g = (_g / _g.sum()).view(1, 1, _k, 1, 1)
@@ -290,7 +290,7 @@ class LGMEngine(AbstractEngine):
             nonzero = grid_np[grid_np > 1e-4]
             if len(nonzero) == 0:
                 return None
-            iso = float(np.percentile(nonzero, 62))
+            iso = float(np.percentile(nonzero, 48))
 
             # Always use skimage.measure.marching_cubes on CPU grid_np so vertex
             # coordinates stay in (ix, iy, iz) = (x, y, z) order without axis reversal!

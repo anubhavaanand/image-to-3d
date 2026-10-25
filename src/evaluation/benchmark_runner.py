@@ -497,7 +497,7 @@ def render_novel_view_same_bg(
             # but NOT to vertex colors (color_0), and then applies pow(color, 1/2.2) at output.
             # Pre-converting sRGB vertex colors to linear RGB via pow(c, 2.2) eliminates the
             # double-gamma washout and matches the UV-texture shading curve identically.
-            vc_lin = np.power(vc_srgb, 2.2).astype(np.float32)
+            vc_lin = vc_srgb.astype(np.float32)
 
         tm = trimesh.Trimesh(
             vertices=verts,
