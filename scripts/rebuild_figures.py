@@ -11,12 +11,16 @@ Engine columns reuse the pre-rendered Kaggle novel-view PNGs (avoids loading 920
 
 import ctypes
 import gc
+import os
 import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import trimesh
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+
+# Headless EGL must be selected before pyrender/OpenGL is imported.
+os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
 
 # PyOpenGL 3.1.0 cannot marshal ctypes output arrays on Python 3.14, so
 # pyrender's glGenTextures(1) raises "No array-type handler for type _ctypes.type".
