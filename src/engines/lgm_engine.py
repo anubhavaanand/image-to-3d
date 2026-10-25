@@ -321,9 +321,9 @@ class LGMEngine(AbstractEngine):
             # Build the colour donor set from high-opacity core Gaussians only.
             # Low-opacity boundary splats are translucent fog and are the source
             # of the blue/teal colour cast on neutral objects.
-            core_mask = opa_fg > 0.40
+            core_mask = opa_fg > 0.35
             if int(core_mask.sum()) < 100:
-                core_mask = opa_fg > 0.25
+                core_mask = opa_fg > 0.20
             if int(core_mask.sum()) >= 100:
                 pos_color, rgb_color, opa_color = pos_fg[core_mask], rgb_fg[core_mask], opa_fg[core_mask]
             else:
