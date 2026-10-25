@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Memory-safe, zero-OpenGL figure generator for the 4-Engine 3D Benchmark paper:
+"""Figure generator for the 4-Engine 3D Benchmark paper:
 1. paper/figures/qualitative_comparison.png (Full 10-object x 6-column comparison from batch1_v17 + batch2_v24)
 2. paper/figures/gso10_3d_showcase.png (3D Circular Multi-Angle Turntable Showcase + Top-3 Cleanest 4-Engine Strip)
 
-Uses <100 MB RAM total:
-- Processes 1 GSO Ground Truth mesh at a time in pure NumPy (zero OpenGL/EGL).
-- Uses the pre-rendered Kaggle novel-view PNGs for the 4 engines (avoids loading 920 MB of .obj files into RAM).
+Ground-truth meshes are rendered as smooth, textured, watertight triangle meshes with
+pyrender (EGL, 2x supersampled); normals are reconstructed from the depth buffer.
+Engine columns reuse the pre-rendered Kaggle novel-view PNGs (avoids loading 920 MB of
+.obj files into RAM), one GSO mesh is held in memory at a time.
 """
 
+import ctypes
 import gc
 import sys
 from pathlib import Path
@@ -15,6 +17,24 @@ import numpy as np
 import pandas as pd
 import trimesh
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+
+# PyOpenGL 3.1.0 cannot marshal ctypes output arrays on Python 3.14, so
+# pyrender's glGenTextures(1) raises "No array-type handler for type _ctypes.type".
+# Texture *names* are arbitrary integers, so resolve the name with a raw GL call.
+try:
+    import pyrender
+    import pyrender.texture as _pr_texture
+    from OpenGL import platform as _gl_platform
+
+    def _gl_gen_textures(n: int = 1):
+        ids = (ctypes.c_uint * n)()
+        _gl_platform.PLATFORM.GL.glGenTextures(n, ids)
+        return ids[0] if n == 1 else list(ids)
+
+    _pr_texture.glGenTextures = _gl_gen_textures
+except Exception as _exc:  # pragma: no cover - only needed for the GT mesh renders
+    pyrender = None
+    print(f"[rebuild_figures] pyrender unavailable: {_exc}", flush=True)
 
 ROOT = Path("/home/anubhavanand/Desktop/reasearch papers")
 BENCH = ROOT / "image-to-3d-benchmark"
@@ -51,10 +71,10 @@ ENGINE_COLORS = {
 }
 
 ENGINE_QUAL_DIRS = {
-    "TripoSR": BENCH / "results" / "batch1_v22" / "triposr" / "qualitative",
-    "LGM": BENCH / "results" / "batch1_v22" / "lgm" / "qualitative",
-    "SPAR3D": BENCH / "results" / "batch2_v29" / "spar3d" / "qualitative",
-    "TRELLIS": BENCH / "results" / "batch2_v29" / "trellis" / "qualitative",
+    "TripoSR": BENCH / "results" / "batch1_v17" / "triposr" / "qualitative",
+    "LGM": BENCH / "results" / "batch1_v17" / "lgm" / "qualitative",
+    "SPAR3D": BENCH / "results" / "batch2_v24" / "spar3d" / "qualitative",
+    "TRELLIS": BENCH / "results" / "batch2_v24" / "trellis" / "qualitative",
 }
 GSO_DIR = ROOT / "data" / "gso"
 CSV_PATH = BENCH / "results" / "unified_results_4engines.csv"
@@ -99,114 +119,111 @@ def make_camera_pose(azimuth_deg: float, elevation_deg: float, distance: float) 
     return pose
 
 
-def render_gt_views_for_object(sid: str, res: int = 260) -> dict:
-    """Load ONE GSO Ground Truth mesh, sample 260k points uniformly by surface area in pure NumPy, and free memory."""
+def _load_render_mesh(sid: str, tex_max: int = 2048) -> trimesh.Trimesh:
+    """Load one GSO scan, orient it Y-up, unit-normalize it, and cap its texture size."""
     mesh_path = GSO_DIR / sid / "meshes" / "model.obj"
     tm = trimesh.load(str(mesh_path), force="mesh", process=False)
     tm.apply_transform(GSO_ZUP_TO_YUP_4X4)
     verts = normalize_vertices(np.asarray(tm.vertices, dtype=np.float32))
     faces = np.asarray(tm.faces, dtype=np.int64)
     uv = getattr(tm.visual, "uv", None)
-    if uv is not None and len(uv) == len(verts):
-        uv = np.asarray(uv, dtype=np.float32)
+    img = getattr(getattr(tm.visual, "material", None), "image", None)
+    if uv is not None and img is not None and len(uv) == len(verts):
+        pil = Image.fromarray(np.asarray(img)).convert("RGB")
+        if max(pil.size) > tex_max:
+            pil = pil.resize((tex_max, tex_max), Image.LANCZOS)
+        visual = trimesh.visual.TextureVisuals(uv=np.asarray(uv, np.float32), image=pil)
+        mesh = trimesh.Trimesh(verts, faces, visual=visual, process=False)
     else:
-        uv = np.zeros((len(verts), 2), dtype=np.float32)
+        mesh = trimesh.Trimesh(verts, faces, process=False)
     del tm
-
-    # Compute smooth vertex normals on original mesh
-    v0, v1, v2 = verts[faces[:, 0]], verts[faces[:, 1]], verts[faces[:, 2]]
-    cross_f = np.cross(v1 - v0, v2 - v0)
-    areas = 0.5 * np.linalg.norm(cross_f, axis=1)
-    fn = cross_f / (np.linalg.norm(cross_f, axis=1, keepdims=True) + 1e-8)
-    vn = np.zeros_like(verts)
-    np.add.at(vn, faces[:, 0], fn)
-    np.add.at(vn, faces[:, 1], fn)
-    np.add.at(vn, faces[:, 2], fn)
-    vn /= np.linalg.norm(vn, axis=1, keepdims=True) + 1e-8
-
-    # Area-weighted uniform surface sampling (260,000 points -> 100% solid watertight coverage)
-    rng = np.random.default_rng(42)
-    n_samples = 260000
-    probs = areas / max(float(areas.sum()), 1e-12)
-    f_idx = rng.choice(len(faces), size=n_samples, replace=True, p=probs)
-    r1 = np.sqrt(rng.random(n_samples, dtype=np.float32))
-    r2 = rng.random(n_samples, dtype=np.float32)
-    w0 = (1.0 - r1)[:, None]
-    w1 = (r1 * (1.0 - r2))[:, None]
-    w2 = (r1 * r2)[:, None]
-
-    f0, f1, f2 = faces[f_idx, 0], faces[f_idx, 1], faces[f_idx, 2]
-    pts = w0 * verts[f0] + w1 * verts[f1] + w2 * verts[f2]
-    uv_pts = w0 * uv[f0] + w1 * uv[f1] + w2 * uv[f2]
-    vn_pts = w0 * vn[f0] + w1 * vn[f1] + w2 * vn[f2]
-    vn_pts /= np.linalg.norm(vn_pts, axis=1, keepdims=True) + 1e-8
-    del verts, faces, uv, vn, v0, v1, v2, cross_f, areas, fn, f_idx, r1, r2, w0, w1, w2, f0, f1, f2
-
-    tex_path = mesh_path.parent / "texture.png"
-    if not tex_path.exists():
-        tex_path = mesh_path.parent.parent / "materials" / "textures" / "texture.png"
-    tex_img = np.asarray(Image.open(tex_path).convert("RGB"), dtype=np.float32)
-    th, tw, _ = tex_img.shape
-    u = np.clip(uv_pts[:, 0] % 1.0, 0.0, 1.0) * (tw - 1)
-    v = np.clip(1.0 - (uv_pts[:, 1] % 1.0), 0.0, 1.0) * (th - 1)
-    x0 = np.floor(u).astype(np.int32)
-    y0 = np.floor(v).astype(np.int32)
-    x1 = np.clip(x0 + 1, 0, tw - 1)
-    y1 = np.clip(y0 + 1, 0, th - 1)
-    wx = (u - x0)[:, None]
-    wy = (v - y0)[:, None]
-    tex_cols = (
-        (1 - wx) * (1 - wy) * tex_img[y0, x0]
-        + wx * (1 - wy) * tex_img[y0, x1]
-        + (1 - wx) * wy * tex_img[y1, x0]
-        + wx * wy * tex_img[y1, x1]
-    )
-    del tex_img, uv_pts
-
-    norm_cols = np.clip((vn_pts * 0.5 + 0.5) * 185.0 + 45.0, 35.0, 245.0)
-
-    def _project_and_splat(az_deg: float, el_deg: float, base_cols: np.ndarray, out_res: int) -> Image.Image:
-        pose = make_camera_pose(az_deg, el_deg, 2.35)
-        R = pose[:3, :3]
-        t = pose[:3, 3]
-        p_cam = (pts - t) @ R
-        n_cam = vn_pts @ R
-        l_dir = np.array([0.25, 0.35, 0.90], dtype=np.float32)
-        l_dir /= np.linalg.norm(l_dir)
-        shade = np.clip(0.72 + 0.34 * np.maximum(0.0, n_cam @ l_dir), 0.0, 1.10)[:, None]
-        cols = np.clip(base_cols * shade, 0, 255).astype(np.uint8)
-
-        order = np.argsort(p_cam[:, 2])
-        p_cam = p_cam[order]
-        cols = cols[order]
-
-        xy = p_cam[:, :2] / (-p_cam[:, 2:3] + 1e-6)
-        vmin, vmax = xy.min(axis=0), xy.max(axis=0)
-        center = 0.5 * (vmin + vmax)
-        span = max(float((vmax - vmin).max()), 1e-4) / 0.82
-        ss = out_res * 2
-        px = ((xy[:, 0] - center[0]) / span + 0.5) * (ss - 1)
-        py = (0.5 - (xy[:, 1] - center[1]) / span) * (ss - 1)
-        ix = np.clip(np.round(px).astype(np.int32), 0, ss - 1)
-        iy = np.clip(np.round(py).astype(np.int32), 0, ss - 1)
-
-        canvas = np.full((ss, ss, 3), 255, dtype=np.uint8)
-        for dx in (-2, -1, 0, 1, 2):
-            for dy in (-2, -1, 0, 1, 2):
-                if abs(dx) + abs(dy) <= 3:
-                    xx = np.clip(ix + dx, 0, ss - 1)
-                    yy = np.clip(iy + dy, 0, ss - 1)
-                    canvas[yy, xx] = cols
-        return Image.fromarray(canvas).resize((out_res, out_res), Image.LANCZOS)
-
-    out = {
-        "az35": _project_and_splat(35.0, 18.0, tex_cols, res),
-        "az65": _project_and_splat(65.0, 15.0, tex_cols, res),
-        "az145": _project_and_splat(145.0, 20.0, tex_cols, res),
-        "norm65": _project_and_splat(65.0, 15.0, norm_cols, res),
-    }
-    del pts, vn_pts, tex_cols, norm_cols
     gc.collect()
+    return mesh
+
+
+def _depth_normals(depth: np.ndarray, yfov: float) -> np.ndarray:
+    """Reconstruct camera-space normals from a pyrender depth buffer and encode them as RGB."""
+    h, w = depth.shape
+    fx = fy = 0.5 * w / np.tan(yfov / 2.0)
+    z = depth.astype(np.float32)
+
+    # Smooth the depth before differentiating so Marching-Cubes stair-steps do not alias.
+    k = 3
+    zp = np.pad(z, k, mode="edge")
+    acc = np.zeros_like(z)
+    for dy in range(-k, k + 1):
+        for dx in range(-k, k + 1):
+            acc += zp[k + dy : k + dy + h, k + dx : k + dx + w]
+    zs = acc / float((2 * k + 1) ** 2)
+
+    vv, uu = np.mgrid[0:h, 0:w].astype(np.float32)
+    x = (uu - (w - 1) / 2.0) * zs / fx
+    y = -(vv - (h - 1) / 2.0) * zs / fy
+    pts = np.stack([x, y, -zs], axis=-1)
+
+    n = np.cross(np.gradient(pts, axis=1), np.gradient(pts, axis=0))
+    n /= np.linalg.norm(n, axis=-1, keepdims=True) + 1e-8
+    n *= np.sign(n[..., 2:3] + 1e-12)  # orient every normal toward the +Z (viewer) side
+
+    out = np.full((h, w, 3), 255, dtype=np.uint8)
+    mask = z > 0
+    r = np.clip((n[..., 0] * 0.5 + 0.5) * 165.0 + 55.0, 45.0, 240.0)
+    g = np.clip((n[..., 1] * 0.5 + 0.5) * 165.0 + 55.0, 45.0, 240.0)
+    b = np.clip(n[..., 2] * 185.0 + 45.0, 60.0, 245.0)
+    rgb = np.stack([r, g, b], axis=-1).astype(np.uint8)
+    out[mask] = rgb[mask]
+    return out
+
+
+def render_gt_views_for_object(sid: str, res: int = 260) -> dict:
+    """Render smooth watertight GT triangle meshes with pyrender (textured, 2x supersampled)."""
+    if pyrender is None:
+        raise RuntimeError("pyrender is required to render GT meshes")
+
+    mesh = _load_render_mesh(sid)
+    ss = res * 2
+    dist = 3.0
+    radius = 1.12
+    yfov = 2.0 * np.arctan((radius / np.sqrt(dist**2 - radius**2)) / 0.82)
+
+    views = {"az35": (35.0, 18.0), "az65": (65.0, 15.0), "az145": (145.0, 20.0)}
+    renderer = pyrender.OffscreenRenderer(ss, ss)
+    colors, depths = {}, {}
+    try:
+        for key, (az, el) in views.items():
+            scene = pyrender.Scene(bg_color=[255, 255, 255, 255], ambient_light=[0.62, 0.62, 0.62])
+            scene.add(pyrender.Mesh.from_trimesh(mesh, smooth=True))
+            pose = make_camera_pose(az, el, dist)
+            scene.add(pyrender.PerspectiveCamera(yfov=yfov), pose=pose)
+            key_pose = pose.copy()
+            key_pose[:3, 2] = -key_pose[:3, 2]
+            scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=2.1), pose=key_pose)
+            fill_pose = make_camera_pose(az + 75.0, el + 12.0, dist)
+            fill_pose[:3, 2] = -fill_pose[:3, 2]
+            scene.add(pyrender.DirectionalLight(color=np.ones(3), intensity=0.85), pose=fill_pose)
+
+            color, depth = renderer.render(scene)
+            colors[key], depths[key] = color, depth
+    finally:
+        renderer.delete()
+        gc.collect()
+
+    # Per-view silhouette crop at 82% fill keeps every cell legible at paper scale.
+    def _framed(arr: np.ndarray, depth: np.ndarray) -> Image.Image:
+        ys, xs = np.where(depth > 0)
+        if len(xs):
+            x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+        else:
+            x0, x1, y0, y1 = 0, ss - 1, 0, ss - 1
+        side = max(x1 - x0, y1 - y0) / 0.82
+        left = int(round(0.5 * (x0 + x1) - side / 2))
+        top = int(round(0.5 * (y0 + y1) - side / 2))
+        canvas = Image.new("RGB", (int(round(side)), int(round(side))), (255, 255, 255))
+        canvas.paste(Image.fromarray(arr), (-left, -top))
+        return canvas.resize((res, res), Image.LANCZOS)
+
+    out = {k: _framed(colors[k], depths[k]) for k in views}
+    out["norm65"] = _framed(_depth_normals(depths["az65"], yfov), depths["az65"])
     return out
 
 
@@ -315,10 +332,10 @@ def main():
     col_headers = [
         ("Input Image (2D)", "1024px RGBA Centered"),
         ("Ground Truth (3D)", "Watertight GSO Scan"),
-        ("TripoSR (Feed-Fwd)", "3.62s | 2.32 GB VRAM"),
-        ("LGM (4-View GS)", "11.91s | 5.19 GB VRAM"),
-        ("SPAR3D (Point-Diff)", "37.26s | 9.17 GB VRAM"),
-        ("TRELLIS (SLAT Flow)", "28.28s | 6.68 GB VRAM"),
+        ("TripoSR (Feed-Fwd)", "3.55s | 2.32 GB VRAM"),
+        ("LGM (4-View GS)", "11.18s | 5.19 GB VRAM"),
+        ("SPAR3D (Point-Diff)", "34.93s | 9.17 GB VRAM"),
+        ("TRELLIS (SLAT Flow)", "21.58s | 7.01 GB VRAM"),
     ]
     for c_i, (h1, h2) in enumerate(col_headers):
         cx = left_label_w + c_i * (cell + pad_x)
