@@ -1,0 +1,403 @@
+=== BENCHMARK LOG START 2026-10-22 13:11:59.619726 ===
+HF_TOKEN configured ✅
+torch 2.11.0+cu128 (CUDA: 12.8)
+CUDA OK: Tesla T4 | 15.6 GB VRAM
+Config: NUM_SAMPLES=100 | numpy pinned: 2.1.3
+[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/750.4 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━[0m [32m501.8/750.4 kB[0m [31m15.0 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m750.4/750.4 kB[0m [31m11.1 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/23.8 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4.9/23.8 MB[0m [31m146.6 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━━━━━━━[0m [32m11.9/23.8 MB[0m [31m187.1 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━[0m [32m19.2/23.8 MB[0m [31m197.6 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m23.8/23.8 MB[0m [31m230.8 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m23.8/23.8 MB[0m [31m230.8 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m23.8/23.8 MB[0m [31m230.8 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m23.8/23.8 MB[0m [31m77.6 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/56.3 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m56.3/56.3 kB[0m [31m2.6 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/1.0 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m1.0/1.0 MB[0m [31m44.9 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.0/1.0 MB[0m [31m21.9 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/1.0 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m1.0/1.0 MB[0m [31m281.1 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.0/1.0 MB[0m [31m29.4 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/53.8 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m53.8/53.8 kB[0m [31m2.5 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/67.8 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m67.8/67.8 kB[0m [31m2.5 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/1.2 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m1.2/1.2 MB[0m [31m40.1 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.2/1.2 MB[0m [31m24.2 MB/s[0m eta [36m0:00:00[0m
+[?25hSetting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
+/usr/local/lib/python3.13/dist-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/usr/local/lib/python3.13/dist-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+Downloading: "https://download.pytorch.org/models/vgg16-397923af.pth" to /root/.cache/torch/hub/checkpoints/vgg16-397923af.pth
+  0%|          | 0.00/528M [00:00<?, ?B/s]  2%|1         | 9.88M/528M [00:00<00:05, 103MB/s]  7%|6         | 34.6M/528M [00:00<00:02, 195MB/s] 11%|#1        | 59.4M/528M [00:00<00:02, 224MB/s] 16%|#6        | 84.6M/528M [00:00<00:01, 240MB/s] 21%|##        | 109M/528M [00:00<00:01, 246MB/s]  25%|##5       | 134M/528M [00:00<00:01, 249MB/s] 30%|##9       | 158M/528M [00:00<00:01, 251MB/s] 34%|###4      | 182M/528M [00:00<00:01, 249MB/s] 39%|###9      | 206M/528M [00:00<00:01, 250MB/s] 44%|####3     | 230M/528M [00:01<00:01, 250MB/s] 48%|####8     | 254M/528M [00:01<00:01, 251MB/s] 53%|#####2    | 278M/528M [00:01<00:01, 250MB/s] 57%|#####7    | 302M/528M [00:01<00:00, 249MB/s] 62%|######1   | 326M/528M [00:01<00:00, 249MB/s] 66%|######6   | 350M/528M [00:01<00:00, 246MB/s] 71%|#######   | 374M/528M [00:01<00:00, 247MB/s] 76%|#######5  | 398M/528M [00:01<00:00, 251MB/s] 80%|########  | 424M/528M [00:01<00:00, 254MB/s] 85%|########4 | 448M/528M [00:01<00:00, 254MB/s] 89%|########9 | 472M/528M [00:02<00:00, 253MB/s] 94%|#########4| 496M/528M [00:02<00:00, 252MB/s] 99%|#########8| 520M/528M [00:02<00:00, 236MB/s]100%|##########| 528M/528M [00:02<00:00, 244MB/s]
+Loading model from: /usr/local/lib/python3.13/dist-packages/lpips/weights/v0.1/vgg.pth
+Downloading data from 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx' to file '/root/.rembg/models/isnet-general-use/isnet-general-use.onnx'.
+=== CELL 3 GATE: PASS (LPIPS + ISNet cached) ✅ ===
+code cloned fresh @ 2b16bfc2cdc3 — all 4 engines imported OK ✅ (sha recorded in outputs/code_sha.txt)
+[10/100] Ingested Dino_3
+[20/100] Ingested BABY_CAR
+[30/100] Ingested Cole_Hardware_Bowl_Scirocco_YellowBlue
+[40/100] Ingested Dino_5
+[50/100] Ingested Granimals_20_Wooden_ABC_Blocks_Wagon_g2TinmUGGHI
+[60/100] Ingested Logitech_Ultimate_Ears_Boom_Wireless_Speaker_Night_Black
+[70/100] Ingested Nintendo_Yoshi_Action_Figure
+[80/100] Ingested Schleich_Bald_Eagle
+[90/100] Ingested Teenage_Mutant_Ninja_Turtles_Rahzar_Action_Figure
+[100/100] Ingested Travel_Mate_P_series_Notebook
+ingested 100 objects into /kaggle/working/data/gso
+Rendered 10 views...
+Rendered 20 views...
+Rendered 30 views...
+Rendered 40 views...
+Rendered 50 views...
+Rendered 60 views...
+Rendered 70 views...
+Rendered 80 views...
+Rendered 90 views...
+Rendered 100 views...
+[GSO Loader] using explicit object_ids (100): ['ASICS_GELLinksmaster_WhiteCoffeeSand', '3D_Dollhouse_Happy_Brother', '3D_Dollhouse_Sofa', 'Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl', 'Android_Figure_Panda', 'Animal_Planet_Foam_2Headed_Dragon', 'Black_and_Decker_TR3500SD_2Slice_Toaster', 'Down_To_Earth_Orchid_Pot_Ceramic_Red', 'Dog', 'Dino_3', '3D_Dollhouse_Lamp', '3D_Dollhouse_Refrigerator', '3D_Dollhouse_Sink', '3D_Dollhouse_Swing', '3D_Dollhouse_TablePurple', 'ACE_Coffee_Mug_Kristen_16_oz_cup', 'Android_Figure_Chrome', 'Android_Figure_Orange', 'Android_Lego', 'BABY_CAR', 'BALANCING_CACTUS', 'BUILD_A_ROBOT', 'BlackBlack_Nintendo_3DSXL', 'Black_Decker_CM2035B_12Cup_Thermal_Coffeemaker', 'Black_Decker_Stainless_Steel_Toaster_4_Slice', 'Breyer_Horse_Of_The_Year_2015', 'CAR_CARRIER_TRAIN', 'CHILDREN_BEDROOM_CLASSIC', 'CITY_TAXI_POLICE_CAR', 'Cole_Hardware_Bowl_Scirocco_YellowBlue', 'Cole_Hardware_Electric_Pot_Assortment_55', 'Cole_Hardware_Mug_Classic_Blue', 'Cole_Hardware_School_Bell_Solid_Brass_38', 'Crosley_Alarm_Clock_Vintage_Metal', 'DOLL_FAMILY', 'DPC_Handmade_Hat_Brown', 'DPC_tropical_Trends_Hat', 'Design_Ideas_Drawer_Store_Organizer', 'Dino_4', 'Dino_5', 'Down_To_Earth_Ceramic_Orchid_Pot_Asst_Blue', 'Down_To_Earth_Orchid_Pot_Ceramic_Lime', 'Ecoforms_Plant_Container_GP16AMOCHA', 'Ecoforms_Plant_Container_URN_SAN', 'FARM_ANIMAL', 'FIRE_TRUCK', 'Fisher_price_Classic_Toys_Buzzy_Bee', 'GRANDFATHER_DOLL', 'GRANDMOTHER', 'Granimals_20_Wooden_ABC_Blocks_Wagon_g2TinmUGGHI', 'Great_Dinos_Triceratops_Toy', 'Grreatv_Choice_Dog_Bowl_Gray_Bones_Plastic_20_fl_oz_total', 'Guardians_of_the_Galaxy_Galactic_Battlers_Rocket_Raccoon_Figure', 'HeavyDuty_Flashlight', 'Imaginext_Castle_Ogre', 'JBL_Charge_Speaker_portable_wireless_wired_Green', 'KID_ROOM_FURNITURE_SET_1', 'Lenovo_Yoga_2_11', 'Little_Big_Planet_3_Plush_Edition', 'Logitech_Ultimate_Ears_Boom_Wireless_Speaker_Night_Black', 'Lovable_Huggable_Cuddly_Boutique_Teddy_Bear_Beige', 'MONKEY_BOWLING', 'Marvel_Avengers_Titan_Hero_Series_Doctor_Doom', 'My_Little_Pony_Princess_Celestia', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Leonardo', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Michelangelo', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Raphael', 'Nickelodeon_The_Spongebob_Movie_PopAPart_Spongebob', 'Nintendo_Mario_Action_Figure', 'Nintendo_Yoshi_Action_Figure', 'Now_Designs_Bowl_Akita_Black', 'Pennington_Electric_Pot_Cabana_4', 'Playmates_Industrial_CoSplinter_Teenage_Mutant_Ninja_Turtle_Action_Figure', 'Playmates_nickelodeon_teenage_mutant_ninja_turtles_shredder', 'Razer_Kraken_Pro_headset_Full_size_Black', 'Razer_Taipan_White_Ambidextrous_Gaming_Mouse', 'SORTING_TRAIN', 'Schleich_African_Black_Rhino', 'Schleich_Allosaurus', 'Schleich_Bald_Eagle', 'Schleich_Hereford_Bull', 'Schleich_Lion_Action_Figure', 'Schleich_S_Bayala_Unicorn_70432', 'Schleich_Spinosaurus_Action_Figure', 'Schleich_Therizinosaurus_ln9cruulPqc', 'Sootheze_Cold_Therapy_Elephant', 'Sootheze_Toasty_Orca', 'SpiderMan_Titan_Hero_12Inch_Action_Figure_oo1qph4wwiW', 'Super_Mario_3D_World_Deluxe_Set', 'Teenage_Mutant_Ninja_Turtles_Rahzar_Action_Figure', 'Thomas_Friends_Woodan_Railway_Henry', 'Thomas_Friends_Wooden_Railway_Porter_5JzRhMm3a9o', 'Thomas_Friends_Wooden_Railway_Talking_Thomas_z7yi7UFHJRj', 'Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White', 'Threshold_Porcelain_Pitcher_White', 'Threshold_Porcelain_Teapot_White', 'Top_Paw_Dog_Bowl_Blue_Paw_Bone_Ceramic_25_fl_oz_total', 'Transformers_Age_of_Extinction_Mega_1Step_Bumblebee_Figure', 'Transformers_Age_of_Extinction_Stomp_and_Chomp_Grimlock_Figure', 'Travel_Mate_P_series_Notebook']
+[GSO Loader] Loaded 100 samples from /kaggle/working/data/gso.
+GSO ready: rendered 100 upright RGBA views | loaded 100/100 canonical samples ✅
+[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/450.7 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━[0m [32m276.5/450.7 kB[0m [31m8.2 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m450.7/450.7 kB[0m [31m7.5 MB/s[0m eta [36m0:00:00[0m
+[?25h[TripoSR] Loading stabilityai/TripoSR …
+[TripoSR] Remapped 192 transformers-4.x ViT keys to current naming.
+[TripoSR] Model loaded (using verified scikit-image CPU Marching Cubes).
+[TripoSR] 13:24:23 Starting run...
+[GSO Loader] using explicit object_ids (100): ['ASICS_GELLinksmaster_WhiteCoffeeSand', '3D_Dollhouse_Happy_Brother', '3D_Dollhouse_Sofa', 'Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl', 'Android_Figure_Panda', 'Animal_Planet_Foam_2Headed_Dragon', 'Black_and_Decker_TR3500SD_2Slice_Toaster', 'Down_To_Earth_Orchid_Pot_Ceramic_Red', 'Dog', 'Dino_3', '3D_Dollhouse_Lamp', '3D_Dollhouse_Refrigerator', '3D_Dollhouse_Sink', '3D_Dollhouse_Swing', '3D_Dollhouse_TablePurple', 'ACE_Coffee_Mug_Kristen_16_oz_cup', 'Android_Figure_Chrome', 'Android_Figure_Orange', 'Android_Lego', 'BABY_CAR', 'BALANCING_CACTUS', 'BUILD_A_ROBOT', 'BlackBlack_Nintendo_3DSXL', 'Black_Decker_CM2035B_12Cup_Thermal_Coffeemaker', 'Black_Decker_Stainless_Steel_Toaster_4_Slice', 'Breyer_Horse_Of_The_Year_2015', 'CAR_CARRIER_TRAIN', 'CHILDREN_BEDROOM_CLASSIC', 'CITY_TAXI_POLICE_CAR', 'Cole_Hardware_Bowl_Scirocco_YellowBlue', 'Cole_Hardware_Electric_Pot_Assortment_55', 'Cole_Hardware_Mug_Classic_Blue', 'Cole_Hardware_School_Bell_Solid_Brass_38', 'Crosley_Alarm_Clock_Vintage_Metal', 'DOLL_FAMILY', 'DPC_Handmade_Hat_Brown', 'DPC_tropical_Trends_Hat', 'Design_Ideas_Drawer_Store_Organizer', 'Dino_4', 'Dino_5', 'Down_To_Earth_Ceramic_Orchid_Pot_Asst_Blue', 'Down_To_Earth_Orchid_Pot_Ceramic_Lime', 'Ecoforms_Plant_Container_GP16AMOCHA', 'Ecoforms_Plant_Container_URN_SAN', 'FARM_ANIMAL', 'FIRE_TRUCK', 'Fisher_price_Classic_Toys_Buzzy_Bee', 'GRANDFATHER_DOLL', 'GRANDMOTHER', 'Granimals_20_Wooden_ABC_Blocks_Wagon_g2TinmUGGHI', 'Great_Dinos_Triceratops_Toy', 'Grreatv_Choice_Dog_Bowl_Gray_Bones_Plastic_20_fl_oz_total', 'Guardians_of_the_Galaxy_Galactic_Battlers_Rocket_Raccoon_Figure', 'HeavyDuty_Flashlight', 'Imaginext_Castle_Ogre', 'JBL_Charge_Speaker_portable_wireless_wired_Green', 'KID_ROOM_FURNITURE_SET_1', 'Lenovo_Yoga_2_11', 'Little_Big_Planet_3_Plush_Edition', 'Logitech_Ultimate_Ears_Boom_Wireless_Speaker_Night_Black', 'Lovable_Huggable_Cuddly_Boutique_Teddy_Bear_Beige', 'MONKEY_BOWLING', 'Marvel_Avengers_Titan_Hero_Series_Doctor_Doom', 'My_Little_Pony_Princess_Celestia', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Leonardo', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Michelangelo', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Raphael', 'Nickelodeon_The_Spongebob_Movie_PopAPart_Spongebob', 'Nintendo_Mario_Action_Figure', 'Nintendo_Yoshi_Action_Figure', 'Now_Designs_Bowl_Akita_Black', 'Pennington_Electric_Pot_Cabana_4', 'Playmates_Industrial_CoSplinter_Teenage_Mutant_Ninja_Turtle_Action_Figure', 'Playmates_nickelodeon_teenage_mutant_ninja_turtles_shredder', 'Razer_Kraken_Pro_headset_Full_size_Black', 'Razer_Taipan_White_Ambidextrous_Gaming_Mouse', 'SORTING_TRAIN', 'Schleich_African_Black_Rhino', 'Schleich_Allosaurus', 'Schleich_Bald_Eagle', 'Schleich_Hereford_Bull', 'Schleich_Lion_Action_Figure', 'Schleich_S_Bayala_Unicorn_70432', 'Schleich_Spinosaurus_Action_Figure', 'Schleich_Therizinosaurus_ln9cruulPqc', 'Sootheze_Cold_Therapy_Elephant', 'Sootheze_Toasty_Orca', 'SpiderMan_Titan_Hero_12Inch_Action_Figure_oo1qph4wwiW', 'Super_Mario_3D_World_Deluxe_Set', 'Teenage_Mutant_Ninja_Turtles_Rahzar_Action_Figure', 'Thomas_Friends_Woodan_Railway_Henry', 'Thomas_Friends_Wooden_Railway_Porter_5JzRhMm3a9o', 'Thomas_Friends_Wooden_Railway_Talking_Thomas_z7yi7UFHJRj', 'Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White', 'Threshold_Porcelain_Pitcher_White', 'Threshold_Porcelain_Teapot_White', 'Top_Paw_Dog_Bowl_Blue_Paw_Bone_Ceramic_25_fl_oz_total', 'Transformers_Age_of_Extinction_Mega_1Step_Bumblebee_Figure', 'Transformers_Age_of_Extinction_Stomp_and_Chomp_Grimlock_Figure', 'Travel_Mate_P_series_Notebook']
+[GSO Loader] Loaded 100 samples from /kaggle/working/data/gso.
+
+============================================================
+  Evaluating: TripoSR
+============================================================
+  [TripoSR] (1/100) ASICS_GELLinksmaster_WhiteCoffeeSand ... [TripoSR] Inference done in 4.77s (40248 verts)
+Setting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
+/usr/local/lib/python3.13/dist-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/usr/local/lib/python3.13/dist-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+Loading model from: /usr/local/lib/python3.13/dist-packages/lpips/weights/v0.1/vgg.pth
+CD=0.2624  F@0.2=0.794  PSNR=11.59dB  t=4.81s  VRAM=2.32GB
+  [TripoSR] (2/100) 3D_Dollhouse_Happy_Brother ... [TripoSR] Inference done in 3.36s (40184 verts)
+CD=0.0613  F@0.2=1.000  PSNR=19.41dB  t=3.40s  VRAM=2.32GB
+  [TripoSR] (3/100) 3D_Dollhouse_Sofa ... [TripoSR] Inference done in 3.36s (44592 verts)
+CD=0.0989  F@0.2=1.000  PSNR=17.71dB  t=3.40s  VRAM=2.32GB
+  [TripoSR] (4/100) Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl ... [TripoSR] Inference done in 3.54s (92726 verts)
+CD=0.2073  F@0.2=0.883  PSNR=14.61dB  t=3.58s  VRAM=2.32GB
+  [TripoSR] (5/100) Android_Figure_Panda ... [TripoSR] Inference done in 3.39s (57910 verts)
+CD=0.1131  F@0.2=0.994  PSNR=14.31dB  t=3.43s  VRAM=2.32GB
+  [TripoSR] (6/100) Animal_Planet_Foam_2Headed_Dragon ... [TripoSR] Inference done in 3.39s (65104 verts)
+CD=0.2582  F@0.2=0.750  PSNR=8.33dB  t=3.43s  VRAM=2.32GB
+  [TripoSR] (7/100) Black_and_Decker_TR3500SD_2Slice_Toaster ... [TripoSR] Inference done in 3.52s (101493 verts)
+CD=0.2692  F@0.2=0.784  PSNR=12.42dB  t=3.56s  VRAM=2.32GB
+  [TripoSR] (8/100) Down_To_Earth_Orchid_Pot_Ceramic_Red ... [TripoSR] Inference done in 3.73s (156266 verts)
+CD=0.2025  F@0.2=0.909  PSNR=13.35dB  t=3.77s  VRAM=2.32GB
+  [TripoSR] (9/100) Dog ... [TripoSR] Inference done in 3.56s (95507 verts)
+CD=0.1010  F@0.2=0.998  PSNR=14.38dB  t=3.60s  VRAM=2.32GB
+  [TripoSR] (10/100) Dino_3 ... [TripoSR] Inference done in 3.32s (19736 verts)
+CD=0.0622  F@0.2=1.000  PSNR=15.87dB  t=3.36s  VRAM=2.32GB
+  [TripoSR] (11/100) 3D_Dollhouse_Lamp ... [TripoSR] Inference done in 3.34s (15092 verts)
+CD=0.0441  F@0.2=1.000  PSNR=19.35dB  t=3.37s  VRAM=2.32GB
+  [TripoSR] (12/100) 3D_Dollhouse_Refrigerator ... [TripoSR] Inference done in 3.43s (50965 verts)
+CD=0.0565  F@0.2=1.000  PSNR=18.45dB  t=3.47s  VRAM=2.32GB
+  [TripoSR] (13/100) 3D_Dollhouse_Sink ... [TripoSR] Inference done in 3.46s (67276 verts)
+CD=0.0782  F@0.2=1.000  PSNR=18.50dB  t=3.50s  VRAM=2.32GB
+  [TripoSR] (14/100) 3D_Dollhouse_Swing ... [TripoSR] Inference done in 3.57s (97446 verts)
+CD=0.1300  F@0.2=0.942  PSNR=13.19dB  t=3.61s  VRAM=2.32GB
+  [TripoSR] (15/100) 3D_Dollhouse_TablePurple ... [TripoSR] Inference done in 3.56s (86485 verts)
+CD=0.0840  F@0.2=0.980  PSNR=16.87dB  t=3.60s  VRAM=2.32GB
+  [TripoSR] (16/100) ACE_Coffee_Mug_Kristen_16_oz_cup ... [TripoSR] Inference done in 3.46s (65640 verts)
+CD=0.1032  F@0.2=0.978  PSNR=18.43dB  t=3.50s  VRAM=2.32GB
+  [TripoSR] (17/100) Android_Figure_Chrome ... [TripoSR] Inference done in 3.49s (60700 verts)
+CD=0.0775  F@0.2=1.000  PSNR=21.21dB  t=3.54s  VRAM=2.32GB
+  [TripoSR] (18/100) Android_Figure_Orange ... [TripoSR] Inference done in 3.49s (52092 verts)
+CD=0.1241  F@0.2=0.992  PSNR=15.43dB  t=3.53s  VRAM=2.32GB
+  [TripoSR] (19/100) Android_Lego ... [TripoSR] Inference done in 3.48s (58071 verts)
+CD=0.1179  F@0.2=1.000  PSNR=16.23dB  t=3.52s  VRAM=2.32GB
+  [TripoSR] (20/100) BABY_CAR ... [TripoSR] Inference done in 3.58s (79862 verts)
+CD=0.2121  F@0.2=0.861  PSNR=12.25dB  t=3.62s  VRAM=2.32GB
+  [TripoSR] (21/100) BALANCING_CACTUS ... [TripoSR] Inference done in 3.43s (42905 verts)
+CD=0.0935  F@0.2=0.981  PSNR=16.05dB  t=3.47s  VRAM=2.32GB
+  [TripoSR] (22/100) BUILD_A_ROBOT ... [TripoSR] Inference done in 3.43s (41493 verts)
+CD=0.1055  F@0.2=0.986  PSNR=15.75dB  t=3.46s  VRAM=2.32GB
+  [TripoSR] (23/100) BlackBlack_Nintendo_3DSXL ... [TripoSR] Inference done in 3.44s (45616 verts)
+CD=0.0802  F@0.2=1.000  PSNR=13.80dB  t=3.48s  VRAM=2.32GB
+  [TripoSR] (24/100) Black_Decker_CM2035B_12Cup_Thermal_Coffeemaker ... [TripoSR] Inference done in 3.61s (83896 verts)
+CD=0.1693  F@0.2=0.939  PSNR=10.33dB  t=3.65s  VRAM=2.32GB
+  [TripoSR] (25/100) Black_Decker_Stainless_Steel_Toaster_4_Slice ... [TripoSR] Inference done in 3.61s (85063 verts)
+CD=0.2312  F@0.2=0.893  PSNR=11.08dB  t=3.65s  VRAM=2.32GB
+  [TripoSR] (26/100) Breyer_Horse_Of_The_Year_2015 ... [TripoSR] Inference done in 3.41s (32044 verts)
+CD=0.0446  F@0.2=1.000  PSNR=15.62dB  t=3.45s  VRAM=2.32GB
+  [TripoSR] (27/100) CAR_CARRIER_TRAIN ... [TripoSR] Inference done in 3.49s (68613 verts)
+CD=0.3096  F@0.2=0.644  PSNR=8.63dB  t=3.54s  VRAM=2.32GB
+  [TripoSR] (28/100) CHILDREN_BEDROOM_CLASSIC ... [TripoSR] Inference done in 3.66s (89051 verts)
+CD=0.1857  F@0.2=0.895  PSNR=10.38dB  t=3.70s  VRAM=2.32GB
+  [TripoSR] (29/100) CITY_TAXI_POLICE_CAR ... [TripoSR] Inference done in 3.49s (42689 verts)
+CD=0.3481  F@0.2=0.556  PSNR=11.64dB  t=3.53s  VRAM=2.32GB
+  [TripoSR] (30/100) Cole_Hardware_Bowl_Scirocco_YellowBlue ... [TripoSR] Inference done in 3.71s (101751 verts)
+CD=0.2521  F@0.2=0.844  PSNR=14.47dB  t=3.76s  VRAM=2.32GB
+  [TripoSR] (31/100) Cole_Hardware_Electric_Pot_Assortment_55 ... [TripoSR] Inference done in 3.67s (106796 verts)
+CD=0.1578  F@0.2=0.926  PSNR=13.62dB  t=3.71s  VRAM=2.32GB
+  [TripoSR] (32/100) Cole_Hardware_Mug_Classic_Blue ... [TripoSR] Inference done in 3.62s (77926 verts)
+CD=0.1338  F@0.2=0.941  PSNR=21.02dB  t=3.66s  VRAM=2.32GB
+  [TripoSR] (33/100) Cole_Hardware_School_Bell_Solid_Brass_38 ... [TripoSR] Inference done in 3.41s (28691 verts)
+CD=0.0635  F@0.2=0.992  PSNR=14.68dB  t=3.45s  VRAM=2.32GB
+  [TripoSR] (34/100) Crosley_Alarm_Clock_Vintage_Metal ... [TripoSR] Inference done in 3.43s (31382 verts)
+CD=0.0835  F@0.2=1.000  PSNR=14.65dB  t=3.47s  VRAM=2.32GB
+  [TripoSR] (35/100) DOLL_FAMILY ... [TripoSR] Inference done in 3.52s (63284 verts)
+CD=0.1341  F@0.2=0.984  PSNR=12.89dB  t=3.57s  VRAM=2.32GB
+  [TripoSR] (36/100) DPC_Handmade_Hat_Brown ... [TripoSR] Inference done in 3.43s (36875 verts)
+CD=0.0905  F@0.2=0.991  PSNR=13.26dB  t=3.47s  VRAM=2.32GB
+  [TripoSR] (37/100) DPC_tropical_Trends_Hat ... [TripoSR] Inference done in 3.52s (58854 verts)
+CD=0.1311  F@0.2=0.989  PSNR=14.83dB  t=3.56s  VRAM=2.32GB
+  [TripoSR] (38/100) Design_Ideas_Drawer_Store_Organizer ... [TripoSR] Inference done in 3.46s (38140 verts)
+CD=0.0653  F@0.2=1.000  PSNR=21.28dB  t=3.50s  VRAM=2.32GB
+  [TripoSR] (39/100) Dino_4 ... [TripoSR] Inference done in 3.43s (36111 verts)
+CD=0.1199  F@0.2=0.987  PSNR=13.22dB  t=3.47s  VRAM=2.32GB
+  [TripoSR] (40/100) Dino_5 ... [TripoSR] Inference done in 3.48s (33666 verts)
+CD=0.0813  F@0.2=0.998  PSNR=13.87dB  t=3.52s  VRAM=2.32GB
+  [TripoSR] (41/100) Down_To_Earth_Ceramic_Orchid_Pot_Asst_Blue ... [TripoSR] Inference done in 3.62s (89703 verts)
+CD=0.2175  F@0.2=0.853  PSNR=12.00dB  t=3.66s  VRAM=2.32GB
+  [TripoSR] (42/100) Down_To_Earth_Orchid_Pot_Ceramic_Lime ... [TripoSR] Inference done in 3.67s (98206 verts)
+CD=0.1902  F@0.2=0.888  PSNR=13.74dB  t=3.71s  VRAM=2.32GB
+  [TripoSR] (43/100) Ecoforms_Plant_Container_GP16AMOCHA ... [TripoSR] Inference done in 3.67s (108061 verts)
+CD=0.1578  F@0.2=0.960  PSNR=11.38dB  t=3.71s  VRAM=2.32GB
+  [TripoSR] (44/100) Ecoforms_Plant_Container_URN_SAN ... [TripoSR] Inference done in 3.69s (110008 verts)
+CD=0.1455  F@0.2=0.938  PSNR=13.81dB  t=3.73s  VRAM=2.32GB
+  [TripoSR] (45/100) FARM_ANIMAL ... [TripoSR] Inference done in 3.51s (60948 verts)
+CD=0.1863  F@0.2=0.932  PSNR=10.76dB  t=3.55s  VRAM=2.32GB
+  [TripoSR] (46/100) FIRE_TRUCK ... [TripoSR] Inference done in 3.55s (75910 verts)
+CD=0.1029  F@0.2=0.996  PSNR=11.87dB  t=3.60s  VRAM=2.32GB
+  [TripoSR] (47/100) Fisher_price_Classic_Toys_Buzzy_Bee ... [TripoSR] Inference done in 3.45s (44418 verts)
+CD=0.1286  F@0.2=0.969  PSNR=13.35dB  t=3.49s  VRAM=2.32GB
+  [TripoSR] (48/100) GRANDFATHER_DOLL ... [TripoSR] Inference done in 3.44s (28182 verts)
+CD=0.0613  F@0.2=1.000  PSNR=16.95dB  t=3.48s  VRAM=2.32GB
+  [TripoSR] (49/100) GRANDMOTHER ... [TripoSR] Inference done in 3.49s (24912 verts)
+CD=0.0565  F@0.2=1.000  PSNR=19.11dB  t=3.53s  VRAM=2.32GB
+  [TripoSR] (50/100) Granimals_20_Wooden_ABC_Blocks_Wagon_g2TinmUGGHI ... [TripoSR] Inference done in 3.46s (24572 verts)
+CD=0.0905  F@0.2=0.997  PSNR=16.15dB  t=3.50s  VRAM=2.32GB
+  [TripoSR] (51/100) Great_Dinos_Triceratops_Toy ... [TripoSR] Inference done in 3.50s (53530 verts)
+CD=0.0959  F@0.2=0.997  PSNR=14.25dB  t=3.55s  VRAM=2.32GB
+  [TripoSR] (52/100) Grreatv_Choice_Dog_Bowl_Gray_Bones_Plastic_20_fl_oz_total ... [TripoSR] Inference done in 3.57s (72725 verts)
+CD=0.1708  F@0.2=0.905  PSNR=13.89dB  t=3.61s  VRAM=2.32GB
+  [TripoSR] (53/100) Guardians_of_the_Galaxy_Galactic_Battlers_Rocket_Raccoon_Figure ... [TripoSR] Inference done in 3.45s (45107 verts)
+CD=0.1146  F@0.2=0.974  PSNR=10.57dB  t=3.49s  VRAM=2.32GB
+  [TripoSR] (54/100) HeavyDuty_Flashlight ... [TripoSR] Inference done in 3.42s (27234 verts)
+CD=0.0564  F@0.2=1.000  PSNR=17.99dB  t=3.46s  VRAM=2.32GB
+  [TripoSR] (55/100) Imaginext_Castle_Ogre ... [TripoSR] Inference done in 3.53s (59456 verts)
+CD=0.0689  F@0.2=1.000  PSNR=14.33dB  t=3.57s  VRAM=2.32GB
+  [TripoSR] (56/100) JBL_Charge_Speaker_portable_wireless_wired_Green ... [TripoSR] Inference done in 3.53s (50328 verts)
+CD=0.0801  F@0.2=1.000  PSNR=20.66dB  t=3.57s  VRAM=2.32GB
+  [TripoSR] (57/100) KID_ROOM_FURNITURE_SET_1 ... [TripoSR] Inference done in 3.59s (86312 verts)
+CD=0.2098  F@0.2=0.838  PSNR=9.12dB  t=3.63s  VRAM=2.32GB
+  [TripoSR] (58/100) Lenovo_Yoga_2_11 ... [TripoSR] Inference done in 3.49s (54998 verts)
+CD=0.0738  F@0.2=1.000  PSNR=13.58dB  t=3.53s  VRAM=2.32GB
+  [TripoSR] (59/100) Little_Big_Planet_3_Plush_Edition ... [TripoSR] Inference done in 3.64s (92543 verts)
+CD=0.0812  F@0.2=1.000  PSNR=15.23dB  t=3.68s  VRAM=2.32GB
+  [TripoSR] (60/100) Logitech_Ultimate_Ears_Boom_Wireless_Speaker_Night_Black ... [TripoSR] Inference done in 3.46s (47010 verts)
+CD=0.0568  F@0.2=1.000  PSNR=17.77dB  t=3.50s  VRAM=2.32GB
+  [TripoSR] (61/100) Lovable_Huggable_Cuddly_Boutique_Teddy_Bear_Beige ... [TripoSR] Inference done in 3.55s (70625 verts)
+CD=0.1635  F@0.2=0.940  PSNR=13.13dB  t=3.59s  VRAM=2.32GB
+  [TripoSR] (62/100) MONKEY_BOWLING ... [TripoSR] Inference done in 3.45s (52344 verts)
+CD=0.1865  F@0.2=0.908  PSNR=11.50dB  t=3.49s  VRAM=2.32GB
+  [TripoSR] (63/100) Marvel_Avengers_Titan_Hero_Series_Doctor_Doom ... [TripoSR] Inference done in 3.47s (40179 verts)
+CD=0.0553  F@0.2=1.000  PSNR=13.69dB  t=3.51s  VRAM=2.32GB
+  [TripoSR] (64/100) My_Little_Pony_Princess_Celestia ... [TripoSR] Inference done in 3.52s (51659 verts)
+CD=0.1584  F@0.2=0.920  PSNR=14.07dB  t=3.56s  VRAM=2.32GB
+  [TripoSR] (65/100) Nickelodeon_Teenage_Mutant_Ninja_Turtles_Leonardo ... [TripoSR] Inference done in 3.48s (48233 verts)
+CD=0.0921  F@0.2=0.989  PSNR=14.16dB  t=3.52s  VRAM=2.32GB
+  [TripoSR] (66/100) Nickelodeon_Teenage_Mutant_Ninja_Turtles_Michelangelo ... [TripoSR] Inference done in 3.48s (37352 verts)
+CD=0.0708  F@0.2=0.995  PSNR=15.24dB  t=3.52s  VRAM=2.32GB
+  [TripoSR] (67/100) Nickelodeon_Teenage_Mutant_Ninja_Turtles_Raphael ... [TripoSR] Inference done in 3.54s (41061 verts)
+CD=0.0847  F@0.2=0.979  PSNR=15.72dB  t=3.58s  VRAM=2.32GB
+  [TripoSR] (68/100) Nickelodeon_The_Spongebob_Movie_PopAPart_Spongebob ... [TripoSR] Inference done in 3.50s (40162 verts)
+CD=0.1483  F@0.2=0.934  PSNR=13.19dB  t=3.54s  VRAM=2.32GB
+  [TripoSR] (69/100) Nintendo_Mario_Action_Figure ... [TripoSR] Inference done in 3.48s (38514 verts)
+CD=0.0643  F@0.2=1.000  PSNR=13.75dB  t=3.52s  VRAM=2.32GB
+  [TripoSR] (70/100) Nintendo_Yoshi_Action_Figure ... [TripoSR] Inference done in 3.50s (40964 verts)
+CD=0.0802  F@0.2=0.999  PSNR=13.34dB  t=3.54s  VRAM=2.32GB
+  [TripoSR] (71/100) Now_Designs_Bowl_Akita_Black ... [TripoSR] Inference done in 3.72s (112463 verts)
+CD=0.1189  F@0.2=0.979  PSNR=14.87dB  t=3.76s  VRAM=2.32GB
+  [TripoSR] (72/100) Pennington_Electric_Pot_Cabana_4 ... [TripoSR] Inference done in 3.69s (107106 verts)
+CD=0.1573  F@0.2=0.944  PSNR=18.04dB  t=3.73s  VRAM=2.32GB
+  [TripoSR] (73/100) Playmates_Industrial_CoSplinter_Teenage_Mutant_Ninja_Turtle_Action_Figure ... [TripoSR] Inference done in 3.50s (41566 verts)
+CD=0.1046  F@0.2=0.989  PSNR=11.37dB  t=3.54s  VRAM=2.32GB
+  [TripoSR] (74/100) Playmates_nickelodeon_teenage_mutant_ninja_turtles_shredder ... [TripoSR] Inference done in 3.45s (35082 verts)
+CD=0.0625  F@0.2=1.000  PSNR=14.01dB  t=3.49s  VRAM=2.32GB
+  [TripoSR] (75/100) Razer_Kraken_Pro_headset_Full_size_Black ... [TripoSR] Inference done in 3.47s (38846 verts)
+CD=0.1362  F@0.2=0.991  PSNR=9.87dB  t=3.51s  VRAM=2.32GB
+  [TripoSR] (76/100) Razer_Taipan_White_Ambidextrous_Gaming_Mouse ... [TripoSR] Inference done in 3.49s (52611 verts)
+CD=0.1922  F@0.2=0.883  PSNR=11.86dB  t=3.53s  VRAM=2.32GB
+  [TripoSR] (77/100) SORTING_TRAIN ... [TripoSR] Inference done in 3.45s (50026 verts)
+CD=0.0765  F@0.2=0.994  PSNR=10.75dB  t=3.49s  VRAM=2.32GB
+  [TripoSR] (78/100) Schleich_African_Black_Rhino ... [TripoSR] Inference done in 3.42s (37188 verts)
+CD=0.2533  F@0.2=0.779  PSNR=9.10dB  t=3.46s  VRAM=2.32GB
+  [TripoSR] (79/100) Schleich_Allosaurus ... [TripoSR] Inference done in 3.45s (40124 verts)
+CD=0.2199  F@0.2=0.870  PSNR=12.96dB  t=3.48s  VRAM=2.32GB
+  [TripoSR] (80/100) Schleich_Bald_Eagle ... [TripoSR] Inference done in 3.51s (61568 verts)
+CD=0.0954  F@0.2=0.995  PSNR=12.77dB  t=3.55s  VRAM=2.32GB
+  [TripoSR] (81/100) Schleich_Hereford_Bull ... [TripoSR] Inference done in 3.46s (47933 verts)
+CD=0.2073  F@0.2=0.928  PSNR=12.08dB  t=3.50s  VRAM=2.32GB
+  [TripoSR] (82/100) Schleich_Lion_Action_Figure ... [TripoSR] Inference done in 3.44s (31629 verts)
+CD=0.0613  F@0.2=1.000  PSNR=15.82dB  t=3.48s  VRAM=2.32GB
+  [TripoSR] (83/100) Schleich_S_Bayala_Unicorn_70432 ... [TripoSR] Inference done in 3.48s (50718 verts)
+CD=0.1808  F@0.2=0.942  PSNR=14.94dB  t=3.52s  VRAM=2.32GB
+  [TripoSR] (84/100) Schleich_Spinosaurus_Action_Figure ... [TripoSR] Inference done in 3.43s (46389 verts)
+CD=0.2339  F@0.2=0.794  PSNR=10.80dB  t=3.47s  VRAM=2.32GB
+  [TripoSR] (85/100) Schleich_Therizinosaurus_ln9cruulPqc ... [TripoSR] Inference done in 3.42s (34753 verts)
+CD=0.1000  F@0.2=0.981  PSNR=11.43dB  t=3.46s  VRAM=2.32GB
+  [TripoSR] (86/100) Sootheze_Cold_Therapy_Elephant ... [TripoSR] Inference done in 3.53s (64510 verts)
+CD=0.1091  F@0.2=0.999  PSNR=16.06dB  t=3.57s  VRAM=2.32GB
+  [TripoSR] (87/100) Sootheze_Toasty_Orca ... [TripoSR] Inference done in 3.51s (73065 verts)
+CD=0.5104  F@0.2=0.290  PSNR=5.82dB  t=3.55s  VRAM=2.32GB
+  [TripoSR] (88/100) SpiderMan_Titan_Hero_12Inch_Action_Figure_oo1qph4wwiW ... [TripoSR] Inference done in 3.42s (17282 verts)
+CD=0.0372  F@0.2=1.000  PSNR=18.47dB  t=3.47s  VRAM=2.32GB
+  [TripoSR] (89/100) Super_Mario_3D_World_Deluxe_Set ... [TripoSR] Inference done in 3.47s (28672 verts)
+CD=0.0635  F@0.2=1.000  PSNR=16.98dB  t=3.51s  VRAM=2.32GB
+  [TripoSR] (90/100) Teenage_Mutant_Ninja_Turtles_Rahzar_Action_Figure ... [TripoSR] Inference done in 3.46s (34654 verts)
+CD=0.0750  F@0.2=0.999  PSNR=14.01dB  t=3.50s  VRAM=2.32GB
+  [TripoSR] (91/100) Thomas_Friends_Woodan_Railway_Henry ... [TripoSR] Inference done in 3.45s (27609 verts)
+CD=0.0633  F@0.2=1.000  PSNR=17.69dB  t=3.49s  VRAM=2.32GB
+  [TripoSR] (92/100) Thomas_Friends_Wooden_Railway_Porter_5JzRhMm3a9o ... [TripoSR] Inference done in 3.71s (104460 verts)
+CD=0.2193  F@0.2=0.862  PSNR=10.87dB  t=3.76s  VRAM=2.32GB
+  [TripoSR] (93/100) Thomas_Friends_Wooden_Railway_Talking_Thomas_z7yi7UFHJRj ... [TripoSR] Inference done in 3.74s (119839 verts)
+CD=0.2102  F@0.2=0.856  PSNR=10.05dB  t=3.78s  VRAM=2.32GB
+  [TripoSR] (94/100) Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White ... [TripoSR] Inference done in 3.70s (117543 verts)
+CD=0.1642  F@0.2=0.946  PSNR=17.87dB  t=3.74s  VRAM=2.32GB
+  [TripoSR] (95/100) Threshold_Porcelain_Pitcher_White ... [TripoSR] Inference done in 3.51s (68292 verts)
+CD=0.0961  F@0.2=0.974  PSNR=18.70dB  t=3.55s  VRAM=2.32GB
+  [TripoSR] (96/100) Threshold_Porcelain_Teapot_White ... [TripoSR] Inference done in 3.56s (81422 verts)
+CD=0.3239  F@0.2=0.785  PSNR=14.20dB  t=3.60s  VRAM=2.32GB
+  [TripoSR] (97/100) Top_Paw_Dog_Bowl_Blue_Paw_Bone_Ceramic_25_fl_oz_total ... [TripoSR] Inference done in 3.62s (89875 verts)
+CD=0.1477  F@0.2=0.929  PSNR=12.47dB  t=3.67s  VRAM=2.32GB
+  [TripoSR] (98/100) Transformers_Age_of_Extinction_Mega_1Step_Bumblebee_Figure ... [TripoSR] Inference done in 3.53s (61121 verts)
+CD=0.0811  F@0.2=0.997  PSNR=13.98dB  t=3.57s  VRAM=2.32GB
+  [TripoSR] (99/100) Transformers_Age_of_Extinction_Stomp_and_Chomp_Grimlock_Figure ... [TripoSR] Inference done in 3.59s (78278 verts)
+CD=0.2388  F@0.2=0.806  PSNR=10.55dB  t=3.63s  VRAM=2.32GB
+  [TripoSR] (100/100) Travel_Mate_P_series_Notebook ... [TripoSR] Inference done in 3.47s (55242 verts)
+CD=0.0753  F@0.2=0.998  PSNR=11.25dB  t=3.51s  VRAM=2.32GB
+[BenchmarkRunner] Results saved to /kaggle/working/outputs/triposr/triposr_results.json
+[TripoSR] 13:43:16 COMPLETE ✅
+[BenchmarkRunner] Results saved to /kaggle/working/outputs/triposr_results.json
+[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/3.2 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━[0m[91m╸[0m[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.4/3.2 MB[0m [31m11.4 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[90m╺[0m[90m━━━━━━━━━━━━━[0m [32m2.1/3.2 MB[0m [31m36.5 MB/s[0m eta [36m0:00:01[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m3.2/3.2 MB[0m [31m35.2 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m3.2/3.2 MB[0m [31m28.0 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/43.3 kB[0m [31m?[0m eta [36m-:--:--[0m[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m43.3/43.3 kB[0m [31m2.0 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/41.6 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m41.6/41.6 kB[0m [31m2.1 MB/s[0m eta [36m0:00:00[0m
+[?25h[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/216.9 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m215.0/216.9 kB[0m [31m16.2 MB/s[0m eta [36m0:00:01[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m216.9/216.9 kB[0m [31m5.7 MB/s[0m eta [36m0:00:00[0m
+[?25h  Preparing metadata (setup.py) ... [?25l[?25hdone
+  Building wheel for diff_gaussian_rasterization (setup.py) ... [?25l[?25hdone
+[LGM] Installed PyTorch SDPA shim for xformers.ops.memory_efficient_attention ✅
+/kaggle/working/LGM/core/attention.py:22: UserWarning: xFormers is available (Attention)
+  warnings.warn("xFormers is available (Attention)")
+[LGM] Loading U-Net from ashawkey/LGM …
+Downloading: "https://github.com/richzhang/PerceptualSimilarity/raw/master/lpips/weights/v0.1/vgg.pth" to /root/.cache/torch/hub/checkpoints/vgg.pth
+  0%|          | 0.00/7.12k [00:00<?, ?B/s]100%|##########| 7.12k/7.12k [00:00<00:00, 9.95MB/s]
+[LGM] Loading ImageDream multi-view diffusion …
+/usr/local/lib/python3.13/dist-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
+  deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
+Expected types for unet: (<class 'mvdream.mv_unet.MultiViewUNetModel'>,), got <class 'diffusers_modules.local.mv_unet.MultiViewUNetModel'>.
+[LGM] Model loaded.
+[LGM] 13:45:33 Starting run...
+[GSO Loader] using explicit object_ids (100): ['ASICS_GELLinksmaster_WhiteCoffeeSand', '3D_Dollhouse_Happy_Brother', '3D_Dollhouse_Sofa', 'Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl', 'Android_Figure_Panda', 'Animal_Planet_Foam_2Headed_Dragon', 'Black_and_Decker_TR3500SD_2Slice_Toaster', 'Down_To_Earth_Orchid_Pot_Ceramic_Red', 'Dog', 'Dino_3', '3D_Dollhouse_Lamp', '3D_Dollhouse_Refrigerator', '3D_Dollhouse_Sink', '3D_Dollhouse_Swing', '3D_Dollhouse_TablePurple', 'ACE_Coffee_Mug_Kristen_16_oz_cup', 'Android_Figure_Chrome', 'Android_Figure_Orange', 'Android_Lego', 'BABY_CAR', 'BALANCING_CACTUS', 'BUILD_A_ROBOT', 'BlackBlack_Nintendo_3DSXL', 'Black_Decker_CM2035B_12Cup_Thermal_Coffeemaker', 'Black_Decker_Stainless_Steel_Toaster_4_Slice', 'Breyer_Horse_Of_The_Year_2015', 'CAR_CARRIER_TRAIN', 'CHILDREN_BEDROOM_CLASSIC', 'CITY_TAXI_POLICE_CAR', 'Cole_Hardware_Bowl_Scirocco_YellowBlue', 'Cole_Hardware_Electric_Pot_Assortment_55', 'Cole_Hardware_Mug_Classic_Blue', 'Cole_Hardware_School_Bell_Solid_Brass_38', 'Crosley_Alarm_Clock_Vintage_Metal', 'DOLL_FAMILY', 'DPC_Handmade_Hat_Brown', 'DPC_tropical_Trends_Hat', 'Design_Ideas_Drawer_Store_Organizer', 'Dino_4', 'Dino_5', 'Down_To_Earth_Ceramic_Orchid_Pot_Asst_Blue', 'Down_To_Earth_Orchid_Pot_Ceramic_Lime', 'Ecoforms_Plant_Container_GP16AMOCHA', 'Ecoforms_Plant_Container_URN_SAN', 'FARM_ANIMAL', 'FIRE_TRUCK', 'Fisher_price_Classic_Toys_Buzzy_Bee', 'GRANDFATHER_DOLL', 'GRANDMOTHER', 'Granimals_20_Wooden_ABC_Blocks_Wagon_g2TinmUGGHI', 'Great_Dinos_Triceratops_Toy', 'Grreatv_Choice_Dog_Bowl_Gray_Bones_Plastic_20_fl_oz_total', 'Guardians_of_the_Galaxy_Galactic_Battlers_Rocket_Raccoon_Figure', 'HeavyDuty_Flashlight', 'Imaginext_Castle_Ogre', 'JBL_Charge_Speaker_portable_wireless_wired_Green', 'KID_ROOM_FURNITURE_SET_1', 'Lenovo_Yoga_2_11', 'Little_Big_Planet_3_Plush_Edition', 'Logitech_Ultimate_Ears_Boom_Wireless_Speaker_Night_Black', 'Lovable_Huggable_Cuddly_Boutique_Teddy_Bear_Beige', 'MONKEY_BOWLING', 'Marvel_Avengers_Titan_Hero_Series_Doctor_Doom', 'My_Little_Pony_Princess_Celestia', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Leonardo', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Michelangelo', 'Nickelodeon_Teenage_Mutant_Ninja_Turtles_Raphael', 'Nickelodeon_The_Spongebob_Movie_PopAPart_Spongebob', 'Nintendo_Mario_Action_Figure', 'Nintendo_Yoshi_Action_Figure', 'Now_Designs_Bowl_Akita_Black', 'Pennington_Electric_Pot_Cabana_4', 'Playmates_Industrial_CoSplinter_Teenage_Mutant_Ninja_Turtle_Action_Figure', 'Playmates_nickelodeon_teenage_mutant_ninja_turtles_shredder', 'Razer_Kraken_Pro_headset_Full_size_Black', 'Razer_Taipan_White_Ambidextrous_Gaming_Mouse', 'SORTING_TRAIN', 'Schleich_African_Black_Rhino', 'Schleich_Allosaurus', 'Schleich_Bald_Eagle', 'Schleich_Hereford_Bull', 'Schleich_Lion_Action_Figure', 'Schleich_S_Bayala_Unicorn_70432', 'Schleich_Spinosaurus_Action_Figure', 'Schleich_Therizinosaurus_ln9cruulPqc', 'Sootheze_Cold_Therapy_Elephant', 'Sootheze_Toasty_Orca', 'SpiderMan_Titan_Hero_12Inch_Action_Figure_oo1qph4wwiW', 'Super_Mario_3D_World_Deluxe_Set', 'Teenage_Mutant_Ninja_Turtles_Rahzar_Action_Figure', 'Thomas_Friends_Woodan_Railway_Henry', 'Thomas_Friends_Wooden_Railway_Porter_5JzRhMm3a9o', 'Thomas_Friends_Wooden_Railway_Talking_Thomas_z7yi7UFHJRj', 'Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White', 'Threshold_Porcelain_Pitcher_White', 'Threshold_Porcelain_Teapot_White', 'Top_Paw_Dog_Bowl_Blue_Paw_Bone_Ceramic_25_fl_oz_total', 'Transformers_Age_of_Extinction_Mega_1Step_Bumblebee_Figure', 'Transformers_Age_of_Extinction_Stomp_and_Chomp_Grimlock_Figure', 'Travel_Mate_P_series_Notebook']
+[GSO Loader] Loaded 100 samples from /kaggle/working/data/gso.
+
+============================================================
+  Evaluating: LGM
+============================================================
+  [LGM] (1/100) ASICS_GELLinksmaster_WhiteCoffeeSand ... CD=0.2509  F@0.2=0.807  PSNR=9.94dB  t=12.13s  VRAM=5.19GB
+  [LGM] (2/100) 3D_Dollhouse_Happy_Brother ... CD=0.0949  F@0.2=0.995  PSNR=15.13dB  t=10.59s  VRAM=5.19GB
+  [LGM] (3/100) 3D_Dollhouse_Sofa ... CD=0.1110  F@0.2=0.989  PSNR=13.23dB  t=10.37s  VRAM=5.19GB
+  [LGM] (4/100) Bradshaw_International_11642_7_Qt_MP_Plastic_Bowl ... CD=0.0562  F@0.2=1.000  PSNR=16.33dB  t=11.05s  VRAM=5.19GB
+  [LGM] (5/100) Android_Figure_Panda ... CD=0.0909  F@0.2=0.985  PSNR=10.88dB  t=12.77s  VRAM=5.19GB
+  [LGM] (6/100) Animal_Planet_Foam_2Headed_Dragon ... CD=0.2817  F@0.2=0.703  PSNR=10.08dB  t=11.11s  VRAM=5.19GB
+  [LGM] (7/100) Black_and_Decker_TR3500SD_2Slice_Toaster ... CD=0.1831  F@0.2=0.914  PSNR=11.78dB  t=12.68s  VRAM=5.19GB
+  [LGM] (8/100) Down_To_Earth_Orchid_Pot_Ceramic_Red ... CD=0.0924  F@0.2=0.978  PSNR=16.22dB  t=11.85s  VRAM=5.19GB
+  [LGM] (9/100) Dog ... CD=0.1061  F@0.2=0.996  PSNR=12.95dB  t=12.95s  VRAM=5.19GB
+  [LGM] (10/100) Dino_3 ... CD=0.0779  F@0.2=0.999  PSNR=15.70dB  t=9.28s  VRAM=5.19GB
+  [LGM] (11/100) 3D_Dollhouse_Lamp ... CD=0.0408  F@0.2=1.000  PSNR=16.35dB  t=9.29s  VRAM=5.19GB
+  [LGM] (12/100) 3D_Dollhouse_Refrigerator ... CD=0.0842  F@0.2=1.000  PSNR=18.72dB  t=10.49s  VRAM=5.19GB
+  [LGM] (13/100) 3D_Dollhouse_Sink ... CD=0.1090  F@0.2=0.994  PSNR=15.46dB  t=12.01s  VRAM=5.19GB
+  [LGM] (14/100) 3D_Dollhouse_Swing ... CD=0.0917  F@0.2=1.000  PSNR=15.48dB  t=11.57s  VRAM=5.19GB
+  [LGM] (15/100) 3D_Dollhouse_TablePurple ... CD=0.1412  F@0.2=0.965  PSNR=16.29dB  t=11.03s  VRAM=5.19GB
+  [LGM] (16/100) ACE_Coffee_Mug_Kristen_16_oz_cup ... CD=0.0818  F@0.2=0.998  PSNR=10.52dB  t=12.02s  VRAM=5.19GB
+  [LGM] (17/100) Android_Figure_Chrome ... CD=0.1140  F@0.2=0.979  PSNR=16.47dB  t=11.75s  VRAM=5.19GB
+  [LGM] (18/100) Android_Figure_Orange ... CD=0.0813  F@0.2=0.990  PSNR=12.16dB  t=12.37s  VRAM=5.19GB
+  [LGM] (19/100) Android_Lego ... CD=0.1835  F@0.2=0.911  PSNR=12.23dB  t=11.84s  VRAM=5.19GB
+  [LGM] (20/100) BABY_CAR ... CD=0.1732  F@0.2=0.933  PSNR=12.33dB  t=12.20s  VRAM=5.19GB
+  [LGM] (21/100) BALANCING_CACTUS ... CD=0.1942  F@0.2=0.897  PSNR=11.63dB  t=10.13s  VRAM=5.19GB
+  [LGM] (22/100) BUILD_A_ROBOT ... CD=0.1598  F@0.2=0.931  PSNR=13.96dB  t=9.53s  VRAM=5.19GB
+  [LGM] (23/100) BlackBlack_Nintendo_3DSXL ... CD=0.0604  F@0.2=1.000  PSNR=12.81dB  t=11.27s  VRAM=5.19GB
+  [LGM] (24/100) Black_Decker_CM2035B_12Cup_Thermal_Coffeemaker ... CD=0.1670  F@0.2=0.939  PSNR=8.09dB  t=11.66s  VRAM=5.19GB
+  [LGM] (25/100) Black_Decker_Stainless_Steel_Toaster_4_Slice ... CD=0.1703  F@0.2=0.871  PSNR=13.19dB  t=11.32s  VRAM=5.19GB
+  [LGM] (26/100) Breyer_Horse_Of_The_Year_2015 ... CD=0.0893  F@0.2=0.997  PSNR=12.24dB  t=9.62s  VRAM=5.19GB
+  [LGM] (27/100) CAR_CARRIER_TRAIN ... CD=0.2452  F@0.2=0.800  PSNR=8.69dB  t=11.36s  VRAM=5.19GB
+  [LGM] (28/100) CHILDREN_BEDROOM_CLASSIC ... CD=0.2441  F@0.2=0.808  PSNR=11.24dB  t=11.05s  VRAM=5.19GB
+  [LGM] (29/100) CITY_TAXI_POLICE_CAR ... CD=0.3449  F@0.2=0.566  PSNR=8.74dB  t=11.50s  VRAM=5.19GB
+  [LGM] (30/100) Cole_Hardware_Bowl_Scirocco_YellowBlue ... CD=0.0856  F@0.2=0.985  PSNR=14.06dB  t=11.93s  VRAM=5.19GB
+  [LGM] (31/100) Cole_Hardware_Electric_Pot_Assortment_55 ... CD=0.0769  F@0.2=0.988  PSNR=15.99dB  t=12.17s  VRAM=5.19GB
+  [LGM] (32/100) Cole_Hardware_Mug_Classic_Blue ... CD=0.0768  F@0.2=0.997  PSNR=16.41dB  t=11.12s  VRAM=5.19GB
+  [LGM] (33/100) Cole_Hardware_School_Bell_Solid_Brass_38 ... CD=0.0551  F@0.2=1.000  PSNR=14.53dB  t=9.74s  VRAM=5.19GB
+  [LGM] (34/100) Crosley_Alarm_Clock_Vintage_Metal ... CD=0.1106  F@0.2=0.990  PSNR=13.01dB  t=10.16s  VRAM=5.19GB
+  [LGM] (35/100) DOLL_FAMILY ... CD=0.1714  F@0.2=0.934  PSNR=10.71dB  t=10.41s  VRAM=5.19GB
+  [LGM] (36/100) DPC_Handmade_Hat_Brown ... CD=0.0788  F@0.2=0.998  PSNR=14.04dB  t=11.27s  VRAM=5.19GB
+  [LGM] (37/100) DPC_tropical_Trends_Hat ... CD=0.0970  F@0.2=0.989  PSNR=13.28dB  t=11.69s  VRAM=5.19GB
+  [LGM] (38/100) Design_Ideas_Drawer_Store_Organizer ... CD=0.2156  F@0.2=0.831  PSNR=10.58dB  t=10.13s  VRAM=5.19GB
+  [LGM] (39/100) Dino_4 ... CD=0.1334  F@0.2=0.967  PSNR=10.45dB  t=11.44s  VRAM=5.19GB
+  [LGM] (40/100) Dino_5 ... CD=0.1297  F@0.2=0.970  PSNR=12.55dB  t=9.87s  VRAM=5.19GB
+  [LGM] (41/100) Down_To_Earth_Ceramic_Orchid_Pot_Asst_Blue ... CD=0.1173  F@0.2=0.990  PSNR=15.93dB  t=11.67s  VRAM=5.19GB
+  [LGM] (42/100) Down_To_Earth_Orchid_Pot_Ceramic_Lime ... CD=0.0836  F@0.2=0.996  PSNR=17.21dB  t=11.89s  VRAM=5.19GB
+  [LGM] (43/100) Ecoforms_Plant_Container_GP16AMOCHA ... CD=0.0753  F@0.2=0.989  PSNR=15.27dB  t=12.74s  VRAM=5.19GB
+  [LGM] (44/100) Ecoforms_Plant_Container_URN_SAN ... CD=0.0608  F@0.2=1.000  PSNR=16.59dB  t=12.79s  VRAM=5.19GB
+  [LGM] (45/100) FARM_ANIMAL ... CD=0.1809  F@0.2=0.932  PSNR=10.82dB  t=10.16s  VRAM=5.19GB
+  [LGM] (46/100) FIRE_TRUCK ... CD=0.1406  F@0.2=0.962  PSNR=10.20dB  t=11.23s  VRAM=5.19GB
+  [LGM] (47/100) Fisher_price_Classic_Toys_Buzzy_Bee ... CD=0.1772  F@0.2=0.957  PSNR=9.00dB  t=10.76s  VRAM=5.19GB
+  [LGM] (48/100) GRANDFATHER_DOLL ... CD=0.0881  F@0.2=0.996  PSNR=12.47dB  t=10.50s  VRAM=5.19GB
+  [LGM] (49/100) GRANDMOTHER ... CD=0.0722  F@0.2=0.998  PSNR=14.72dB  t=10.48s  VRAM=5.19GB
+  [LGM] (50/100) Granimals_20_Wooden_ABC_Blocks_Wagon_g2TinmUGGHI ... CD=0.0997  F@0.2=0.990  PSNR=12.73dB  t=10.11s  VRAM=5.19GB
+  [LGM] (51/100) Great_Dinos_Triceratops_Toy ... CD=0.0972  F@0.2=0.998  PSNR=12.04dB  t=12.14s  VRAM=5.19GB
+  [LGM] (52/100) Grreatv_Choice_Dog_Bowl_Gray_Bones_Plastic_20_fl_oz_total ... CD=0.1844  F@0.2=0.908  PSNR=13.19dB  t=10.66s  VRAM=5.19GB
+  [LGM] (53/100) Guardians_of_the_Galaxy_Galactic_Battlers_Rocket_Raccoon_Figure ... CD=0.1350  F@0.2=0.953  PSNR=10.58dB  t=10.48s  VRAM=5.19GB
+  [LGM] (54/100) HeavyDuty_Flashlight ... CD=0.0641  F@0.2=0.997  PSNR=15.64dB  t=10.28s  VRAM=5.19GB
+  [LGM] (55/100) Imaginext_Castle_Ogre ... CD=0.1354  F@0.2=0.938  PSNR=10.81dB  t=10.94s  VRAM=5.19GB
+  [LGM] (56/100) JBL_Charge_Speaker_portable_wireless_wired_Green ... CD=0.2048  F@0.2=0.915  PSNR=13.56dB  t=11.12s  VRAM=5.19GB
+  [LGM] (57/100) KID_ROOM_FURNITURE_SET_1 ... CD=0.2173  F@0.2=0.811  PSNR=9.28dB  t=10.76s  VRAM=5.19GB
+  [LGM] (58/100) Lenovo_Yoga_2_11 ... CD=0.0542  F@0.2=1.000  PSNR=12.75dB  t=10.06s  VRAM=5.19GB
+  [LGM] (59/100) Little_Big_Planet_3_Plush_Edition ... CD=0.0949  F@0.2=0.987  PSNR=14.37dB  t=13.17s  VRAM=5.19GB
+  [LGM] (60/100) Logitech_Ultimate_Ears_Boom_Wireless_Speaker_Night_Black ... CD=0.0826  F@0.2=0.987  PSNR=17.20dB  t=10.42s  VRAM=5.19GB
+  [LGM] (61/100) Lovable_Huggable_Cuddly_Boutique_Teddy_Bear_Beige ... CD=0.1714  F@0.2=0.943  PSNR=11.33dB  t=11.24s  VRAM=5.19GB
+  [LGM] (62/100) MONKEY_BOWLING ... CD=0.2337  F@0.2=0.831  PSNR=11.27dB  t=11.43s  VRAM=5.19GB
+  [LGM] (63/100) Marvel_Avengers_Titan_Hero_Series_Doctor_Doom ... CD=0.1086  F@0.2=0.981  PSNR=13.14dB  t=10.18s  VRAM=5.19GB
+  [LGM] (64/100) My_Little_Pony_Princess_Celestia ... CD=0.1703  F@0.2=0.893  PSNR=12.73dB  t=9.84s  VRAM=5.19GB
+  [LGM] (65/100) Nickelodeon_Teenage_Mutant_Ninja_Turtles_Leonardo ... CD=0.1095  F@0.2=0.982  PSNR=12.13dB  t=10.25s  VRAM=5.19GB
+  [LGM] (66/100) Nickelodeon_Teenage_Mutant_Ninja_Turtles_Michelangelo ... CD=0.0852  F@0.2=0.983  PSNR=15.27dB  t=10.06s  VRAM=5.19GB
+  [LGM] (67/100) Nickelodeon_Teenage_Mutant_Ninja_Turtles_Raphael ... CD=0.0863  F@0.2=0.989  PSNR=11.45dB  t=10.61s  VRAM=5.19GB
+  [LGM] (68/100) Nickelodeon_The_Spongebob_Movie_PopAPart_Spongebob ... CD=0.1796  F@0.2=0.906  PSNR=8.83dB  t=9.97s  VRAM=5.19GB
+  [LGM] (69/100) Nintendo_Mario_Action_Figure ... CD=0.0790  F@0.2=1.000  PSNR=11.98dB  t=10.95s  VRAM=5.19GB
+  [LGM] (70/100) Nintendo_Yoshi_Action_Figure ... CD=0.0748  F@0.2=0.999  PSNR=12.42dB  t=10.99s  VRAM=5.19GB
+  [LGM] (71/100) Now_Designs_Bowl_Akita_Black ... CD=0.1348  F@0.2=0.950  PSNR=13.78dB  t=11.37s  VRAM=5.19GB
+  [LGM] (72/100) Pennington_Electric_Pot_Cabana_4 ... CD=0.0771  F@0.2=1.000  PSNR=15.60dB  t=12.51s  VRAM=5.19GB
+  [LGM] (73/100) Playmates_Industrial_CoSplinter_Teenage_Mutant_Ninja_Turtle_Action_Figure ... CD=0.1477  F@0.2=0.924  PSNR=9.42dB  t=10.59s  VRAM=5.19GB
+  [LGM] (74/100) Playmates_nickelodeon_teenage_mutant_ninja_turtles_shredder ... CD=0.0860  F@0.2=0.993  PSNR=13.21dB  t=9.98s  VRAM=5.19GB
+  [LGM] (75/100) Razer_Kraken_Pro_headset_Full_size_Black ... CD=0.1444  F@0.2=0.988  PSNR=9.12dB  t=10.42s  VRAM=5.19GB
+  [LGM] (76/100) Razer_Taipan_White_Ambidextrous_Gaming_Mouse ... CD=0.2657  F@0.2=0.749  PSNR=11.14dB  t=11.09s  VRAM=5.19GB
+  [LGM] (77/100) SORTING_TRAIN ... CD=0.1141  F@0.2=0.978  PSNR=9.22dB  t=11.10s  VRAM=5.19GB
+  [LGM] (78/100) Schleich_African_Black_Rhino ... CD=0.2920  F@0.2=0.683  PSNR=7.65dB  t=12.14s  VRAM=5.19GB
+  [LGM] (79/100) Schleich_Allosaurus ... CD=0.1799  F@0.2=0.903  PSNR=10.63dB  t=10.38s  VRAM=5.19GB
+  [LGM] (80/100) Schleich_Bald_Eagle ... CD=0.2135  F@0.2=0.872  PSNR=9.74dB  t=10.35s  VRAM=5.19GB
+  [LGM] (81/100) Schleich_Hereford_Bull ... CD=0.2347  F@0.2=0.801  PSNR=10.61dB  t=11.91s  VRAM=5.19GB
+  [LGM] (82/100) Schleich_Lion_Action_Figure ... CD=0.0746  F@0.2=0.999  PSNR=12.83dB  t=10.49s  VRAM=5.19GB
+  [LGM] (83/100) Schleich_S_Bayala_Unicorn_70432 ... CD=0.1905  F@0.2=0.924  PSNR=13.23dB  t=11.15s  VRAM=5.19GB
+  [LGM] (84/100) Schleich_Spinosaurus_Action_Figure ... CD=0.2304  F@0.2=0.822  PSNR=10.23dB  t=10.27s  VRAM=5.19GB
+  [LGM] (85/100) Schleich_Therizinosaurus_ln9cruulPqc ... CD=0.1921  F@0.2=0.874  PSNR=8.39dB  t=10.22s  VRAM=5.19GB
+  [LGM] (86/100) Sootheze_Cold_Therapy_Elephant ... CD=0.1288  F@0.2=0.980  PSNR=13.13dB  t=11.47s  VRAM=5.19GB
+  [LGM] (87/100) Sootheze_Toasty_Orca ... CD=0.3756  F@0.2=0.507  PSNR=6.02dB  t=12.52s  VRAM=5.19GB
+  [LGM] (88/100) SpiderMan_Titan_Hero_12Inch_Action_Figure_oo1qph4wwiW ... CD=0.0621  F@0.2=0.999  PSNR=16.08dB  t=9.58s  VRAM=5.19GB
+  [LGM] (89/100) Super_Mario_3D_World_Deluxe_Set ... CD=0.0973  F@0.2=0.994  PSNR=13.76dB  t=10.73s  VRAM=5.19GB
+  [LGM] (90/100) Teenage_Mutant_Ninja_Turtles_Rahzar_Action_Figure ... CD=0.1209  F@0.2=0.958  PSNR=10.66dB  t=9.55s  VRAM=5.19GB
+  [LGM] (91/100) Thomas_Friends_Woodan_Railway_Henry ... CD=0.0957  F@0.2=0.999  PSNR=13.20dB  t=9.96s  VRAM=5.19GB
+  [LGM] (92/100) Thomas_Friends_Wooden_Railway_Porter_5JzRhMm3a9o ... CD=0.1719  F@0.2=0.921  PSNR=10.92dB  t=11.80s  VRAM=5.19GB
+  [LGM] (93/100) Thomas_Friends_Wooden_Railway_Talking_Thomas_z7yi7UFHJRj ... CD=0.1941  F@0.2=0.881  PSNR=10.18dB  t=12.28s  VRAM=5.19GB
+  [LGM] (94/100) Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White ... CD=0.1069  F@0.2=0.998  PSNR=17.13dB  t=12.51s  VRAM=5.19GB
+  [LGM] (95/100) Threshold_Porcelain_Pitcher_White ... CD=0.0671  F@0.2=0.986  PSNR=16.82dB  t=11.58s  VRAM=5.19GB
+  [LGM] (96/100) Threshold_Porcelain_Teapot_White ... CD=0.3483  F@0.2=0.676  PSNR=12.25dB  t=12.78s  VRAM=5.19GB
+  [LGM] (97/100) Top_Paw_Dog_Bowl_Blue_Paw_Bone_Ceramic_25_fl_oz_total ... CD=0.1159  F@0.2=0.972  PSNR=11.46dB  t=11.22s  VRAM=5.19GB
+  [LGM] (98/100) Transformers_Age_of_Extinction_Mega_1Step_Bumblebee_Figure ... CD=0.1522  F@0.2=0.943  PSNR=9.01dB  t=10.75s  VRAM=5.19GB
+  [LGM] (99/100) Transformers_Age_of_Extinction_Stomp_and_Chomp_Grimlock_Figure ... CD=0.2055  F@0.2=0.895  PSNR=8.43dB  t=11.81s  VRAM=5.19GB
+  [LGM] (100/100) Travel_Mate_P_series_Notebook ... CD=0.0479  F@0.2=1.000  PSNR=11.57dB  t=10.25s  VRAM=5.19GB
+[BenchmarkRunner] Results saved to /kaggle/working/outputs/lgm/lgm_results.json
+[LGM] 14:22:07 COMPLETE ✅
+[BenchmarkRunner] Results saved to /kaggle/working/outputs/lgm_results.json
+=== UNIFIED BENCHMARK RESULTS (mean +/- std) ===
+        latency_s         vram_peak_gb      chamfer_distance         f_score_0.1        f_score_0.2         f_score_0.5             psnr           lpips        
+             mean     std         mean  std             mean     std        mean    std        mean     std        mean     std     mean     std    mean     std
+engine                                                                                                                                                          
+LGM       11.0738  0.9360         5.19  0.0           0.1388  0.0703      0.7691  0.200      0.9358  0.0936      0.9987  0.0071  12.5482  2.6171  0.2881  0.0759
+TripoSR    3.5646  0.1562         2.32  0.0           0.1361  0.0792      0.7909  0.214      0.9383  0.1043      0.9985  0.0043  14.1694  3.0593  0.2340  0.0892
+saved: unified_results.csv, unified_table.tex, pareto_frontier.png ✅
+saved outputs: ['benchmark_log.txt', 'code_sha.txt', 'lgm', 'lgm_results.json', 'pareto_frontier.png', 'triposr', 'triposr_results.json', 'unified_results.csv', 'unified_table.tex']

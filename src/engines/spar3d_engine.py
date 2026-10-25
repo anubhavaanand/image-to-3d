@@ -102,6 +102,7 @@ class Spar3dEngine(AbstractEngine):
 
     def _locate_repo(self) -> Path:
         for c in [
+            Path("/tmp/stable-point-aware-3d"),
             Path("/kaggle/working/stable-point-aware-3d"),
             Path(__file__).resolve().parents[2] / "stable-point-aware-3d",
             Path(__file__).resolve().parents[3] / "stable-point-aware-3d",
@@ -116,7 +117,7 @@ class Spar3dEngine(AbstractEngine):
     def load_model(self) -> None:
         _install_spar3d_compat_shims()
         repo_dir = self._locate_repo()
-        for p in [repo_dir, Path("/kaggle/working/CLIP"), Path("/kaggle/working/AlphaCLIP")]:
+        for p in [repo_dir, Path("/tmp/CLIP"), Path("/tmp/AlphaCLIP"), Path("/kaggle/working/CLIP"), Path("/kaggle/working/AlphaCLIP")]:
             if p.is_dir() and str(p) not in sys.path:
                 sys.path.insert(0, str(p))
 

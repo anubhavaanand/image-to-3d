@@ -660,6 +660,9 @@ class BenchmarkRunner:
         num_points: int = 10000,
         output_dir: str | Path = "outputs",
         object_ids: Optional[List[str]] = None,
+        resume_json_path: Optional[str | Path] = None,
+        save_mesh_limit: int = 10,
+        max_wall_minutes: Optional[float] = None,
     ):
         self.dataset_path = Path(dataset_path)
         self.engines = engines
@@ -669,7 +672,22 @@ class BenchmarkRunner:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.bg_remover = BackgroundRemover()
+        self.save_mesh_limit = save_mesh_limit
+        self.max_wall_minutes = max_wall_minutes
+        self._t_runner_start = time.perf_counter()
+        self._stop_requested = False
         self.results: List[Dict[str, Any]] = []
+        if resume_json_path and Path(resume_json_path).exists():
+            try:
+                prior = json.loads(Path(resume_json_path).read_text())
+                if isinstance(prior, list):
+                    self.results = [
+                        r for r in prior
+                        if isinstance(r, dict) and r.get("chamfer_distance") is not None and not pd.isna(r.get("chamfer_distance"))
+                    ]
+                    print(f"[BenchmarkRunner] Resumed {len(self.results)} completed rows from {resume_json_path} ✅")
+            except Exception as e:
+                print(f"[BenchmarkRunner] Resume load warning: {e}")
 
     @staticmethod
     def _render_gt_novel(
@@ -696,14 +714,42 @@ class BenchmarkRunner:
         if not samples:
             raise RuntimeError(f"No valid GSO samples found in {self.dataset_path}")
 
+        import signal
+        def _sig_handler(signum, _frame):
+            print(f"\n[BenchmarkRunner] Caught signal {signum} — stopping gracefully after current step so outputs are saved!")
+            self._stop_requested = True
+        try:
+            signal.signal(signal.SIGTERM, _sig_handler)
+            signal.signal(signal.SIGINT, _sig_handler)
+        except Exception:
+            pass
+
         for engine in self.engines:
             info = engine.get_engine_info()
             engine_name = info.get("name", engine.__class__.__name__)
-            print(f"\n{'='*60}\n  Evaluating: {engine_name}\n{'='*60}")
+            done_ids = {
+                r.get("sample_id") for r in self.results
+                if r.get("engine") == engine_name and r.get("chamfer_distance") is not None and not pd.isna(r.get("chamfer_distance"))
+            }
+            print(f"\n{'='*60}\n  Evaluating: {engine_name} (already completed: {len(done_ids)}/{len(samples)})\n{'='*60}")
+            if len(done_ids) >= len(samples):
+                print(f"  [{engine_name}] All {len(samples)} samples already completed! Skipping.")
+                continue
             if getattr(engine, "model", None) is None and getattr(engine, "pipeline", None) is None:
                 engine.load_model()
 
             for idx, sample in enumerate(samples):
+                if self._stop_requested:
+                    print(f"  [{engine_name}] Graceful stop requested at ({idx+1}/{len(samples)}). Flushing results...")
+                    break
+                if self.max_wall_minutes is not None:
+                    elapsed_min = (time.perf_counter() - self._t_runner_start) / 60.0
+                    if elapsed_min >= self.max_wall_minutes:
+                        print(f"  [{engine_name}] Reached max_wall_minutes={self.max_wall_minutes:.1f}m (elapsed={elapsed_min:.1f}m) at ({idx+1}/{len(samples)}). Stopping cleanly!")
+                        break
+                if sample.sample_id in done_ids:
+                    print(f"  [{engine_name}] ({idx+1}/{len(samples)}) {sample.sample_id} -> CACHED (CD={next(r['chamfer_distance'] for r in self.results if r.get('engine')==engine_name and r.get('sample_id')==sample.sample_id):.4f}) ✅")
+                    continue
                 print(
                     f"  [{engine_name}] ({idx+1}/{len(samples)}) {sample.sample_id} ...",
                     end=" ",
@@ -809,26 +855,34 @@ class BenchmarkRunner:
                                 Image.alpha_composite(_bg_w, clean_img.convert("RGBA")).convert("RGB").save(
                                     qdir / "input.png"
                                 )
-                            try:
-                                import trimesh as _tm
-                                vc_out = None
-                                if render_target.vertex_colors is not None:
-                                    vc = np.asarray(render_target.vertex_colors, dtype=np.float32)
-                                    vc_out = (np.clip(vc, 0.0, 1.0) * 255.0).astype(np.uint8)
-                                _tm.Trimesh(
-                                    vertices=render_target.vertices,
-                                    faces=render_target.faces,
-                                    vertex_colors=vc_out,
-                                    process=False,
-                                ).export(str(qdir / f"{engine_name}_mesh.obj"))
-                            except Exception:
-                                pass
+                            if idx < self.save_mesh_limit:
+                                try:
+                                    import trimesh as _tm
+                                    vc_out = None
+                                    if render_target.vertex_colors is not None:
+                                        vc = np.asarray(render_target.vertex_colors, dtype=np.float32)
+                                        vc_out = (np.clip(vc, 0.0, 1.0) * 255.0).astype(np.uint8)
+                                    _tm.Trimesh(
+                                        vertices=render_target.vertices,
+                                        faces=render_target.faces,
+                                        vertex_colors=vc_out,
+                                        process=False,
+                                    ).export(str(qdir / f"{engine_name}_mesh.obj"))
+                                except Exception:
+                                    pass
                     else:
                         row["psnr"] = np.nan
                         row["lpips"] = np.nan
 
                     row["metadata"] = recon.metadata
                     self.results.append(row)
+                    try:
+                        _ck_p = self.output_dir / f"{engine_name.lower()}_results.json"
+                        _ck_p.write_text(json.dumps(self.results, indent=2, default=str))
+                        _top_p = self.output_dir.parent / f"{engine_name.lower()}_results.json"
+                        _top_p.write_text(json.dumps(self.results, indent=2, default=str))
+                    except Exception:
+                        pass
                     print(
                         f"CD={row['chamfer_distance']:.4f}  "
                         f"F@0.2={row.get('f_score_0.2', float('nan')):.3f}  "

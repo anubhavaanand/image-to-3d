@@ -60,6 +60,7 @@ class TrellisEngine(AbstractEngine):
             import trellis  # noqa: F401
         except ImportError:
             for c in [
+                Path("/tmp/TRELLIS"),
                 Path("/kaggle/working/TRELLIS"),
                 Path(__file__).resolve().parents[2] / "TRELLIS",
                 Path(__file__).resolve().parents[3] / "TRELLIS",
