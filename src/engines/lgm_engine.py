@@ -93,6 +93,7 @@ class LGMEngine(AbstractEngine):
     def _ensure_lgm_imports(self) -> None:
         for repo_name in ("LGM", "mvdream"):
             for c in [
+                Path(f"/tmp/{repo_name}"),
                 Path(f"/kaggle/working/{repo_name}"),
                 Path(__file__).resolve().parents[2] / repo_name,
                 Path(__file__).resolve().parents[3] / repo_name,

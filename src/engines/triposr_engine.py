@@ -113,6 +113,7 @@ class TriposrEngine(AbstractEngine):
             from tsr.system import TSR  # noqa: F401
         except ImportError:
             for c in [
+                Path("/tmp/TripoSR"),
                 Path("/kaggle/working/TripoSR"),
                 Path(__file__).resolve().parents[2] / "TripoSR",
                 Path(__file__).resolve().parents[3] / "TripoSR",

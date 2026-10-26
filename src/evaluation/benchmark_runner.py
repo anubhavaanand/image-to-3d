@@ -679,7 +679,7 @@ class BenchmarkRunner:
         output_dir: str | Path = "outputs",
         object_ids: Optional[List[str]] = None,
         resume_json_path: Optional[str | Path] = None,
-        save_mesh_limit: int = 10,
+        save_mesh_limit: int = 100,
         max_wall_minutes: Optional[float] = None,
     ):
         self.dataset_path = Path(dataset_path)
