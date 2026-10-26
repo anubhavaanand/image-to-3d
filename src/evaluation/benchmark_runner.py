@@ -676,6 +676,7 @@ class BenchmarkRunner:
         self.max_wall_minutes = max_wall_minutes
         self._t_runner_start = time.perf_counter()
         self._stop_requested = False
+        self._meshes_saved = 0
         self.results: List[Dict[str, Any]] = []
         if resume_json_path and Path(resume_json_path).exists():
             try:
@@ -732,6 +733,7 @@ class BenchmarkRunner:
                 if r.get("engine") == engine_name and r.get("chamfer_distance") is not None and not pd.isna(r.get("chamfer_distance"))
             }
             print(f"\n{'='*60}\n  Evaluating: {engine_name} (already completed: {len(done_ids)}/{len(samples)})\n{'='*60}")
+            self._meshes_saved = 0
             if len(done_ids) >= len(samples):
                 print(f"  [{engine_name}] All {len(samples)} samples already completed! Skipping.")
                 continue
@@ -855,21 +857,28 @@ class BenchmarkRunner:
                                 Image.alpha_composite(_bg_w, clean_img.convert("RGBA")).convert("RGB").save(
                                     qdir / "input.png"
                                 )
-                            if idx < self.save_mesh_limit:
-                                try:
-                                    import trimesh as _tm
-                                    vc_out = None
-                                    if render_target.vertex_colors is not None:
-                                        vc = np.asarray(render_target.vertex_colors, dtype=np.float32)
-                                        vc_out = (np.clip(vc, 0.0, 1.0) * 255.0).astype(np.uint8)
-                                    _tm.Trimesh(
-                                        vertices=render_target.vertices,
-                                        faces=render_target.faces,
-                                        vertex_colors=vc_out,
-                                        process=False,
-                                    ).export(str(qdir / f"{engine_name}_mesh.obj"))
-                                except Exception:
-                                    pass
+                        # Mesh export is independent of render success: a PSNR render
+                        # failure must not cost us the geometry. Counter-based so that
+                        # resumed/cached rows cannot starve fresh ones (the old idx gate
+                        # silently produced 0 meshes when the first N rows were cached).
+                        if self._meshes_saved < self.save_mesh_limit:
+                            qdir = self.output_dir / "qualitative" / sample.sample_id
+                            qdir.mkdir(parents=True, exist_ok=True)
+                            try:
+                                import trimesh as _tm
+                                vc_out = None
+                                if render_target.vertex_colors is not None:
+                                    vc = np.asarray(render_target.vertex_colors, dtype=np.float32)
+                                    vc_out = (np.clip(vc, 0.0, 1.0) * 255.0).astype(np.uint8)
+                                _tm.Trimesh(
+                                    vertices=render_target.vertices,
+                                    faces=render_target.faces,
+                                    vertex_colors=vc_out,
+                                    process=False,
+                                ).export(str(qdir / f"{engine_name}_mesh.obj"))
+                                self._meshes_saved += 1
+                            except Exception:
+                                pass
                     else:
                         row["psnr"] = np.nan
                         row["lpips"] = np.nan
