@@ -40,3 +40,7 @@ TripoSR/
 TRELLIS/
 *.log
 *.obj
+
+# local credentials
+.hf_token
+.env
