@@ -48,6 +48,20 @@ class GSOSample:
     gt_colors: Optional[np.ndarray] = None
 
 
+def _srgb_encode_u8(rgb: np.ndarray) -> np.ndarray:
+    """Encode linear-light RGB bytes to sRGB.
+
+    pyrender's fragment shader writes linear values into a framebuffer that is
+    not sRGB-tagged, so the native-UV *texture* path lands ~gamma 2.2 too dark
+    (measured 121 vs 186 foreground on the same GSO mesh). The vertex-color path
+    already arrives in display space, so the encode is applied only to textured
+    renders. White background (255) stays 255.
+    """
+    x = np.clip(np.asarray(rgb, dtype=np.float32) / 255.0, 0.0, 1.0)
+    y = np.where(x <= 0.0031308, x * 12.92, 1.055 * np.power(x, 1.0 / 2.4) - 0.055)
+    return np.clip(y * 255.0 + 0.5, 0, 255).astype(np.uint8)
+
+
 def _ensure_pyopengl_compat() -> None:
     """
     Fix PyOpenGL 3.1.0 compatibility on Python 3.12+ / 3.13 where
@@ -551,6 +565,8 @@ def render_novel_view_same_bg(
         color = np.array(
             Image.fromarray(color).resize((resolution, resolution), Image.LANCZOS)
         )
+        if use_native_uv:
+            color = _srgb_encode_u8(color)
         return color
     except Exception as e:
         print(f"[Renderer] pyrender failed ({e}). Skipping 2D perceptual metrics.")
@@ -634,6 +650,8 @@ def render_gso_mesh_view(
         r.delete()
         color = color.copy()
         color[depth == 0] = 255
+        # Native-UV path renders in linear light; encode once to display space.
+        color = _srgb_encode_u8(color)
         if return_rgba:
             alpha = ((depth > 0).astype(np.uint8) * 255)[..., None]
             rgba_hi = np.concatenate([color, alpha], axis=-1)
