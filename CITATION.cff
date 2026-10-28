@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this benchmark, please cite the manuscript below."
+title: "Image-to-3D Unified Benchmark"
+abstract: "A reproducible, ground-truth-referenced benchmark of four feed-forward single-image 3D reconstruction paradigms (TripoSR, LGM, SPAR3D, TRELLIS) on Google Scanned Objects, covering geometry, appearance, latency, and peak VRAM."
+authors:
+  - family-names: Anand
+    given-names: Anubhav
+    affiliation: "Amity University Uttar Pradesh, India"
+year: 2026
+repository-code: "https://github.com/anubhavaanand/image-to-3d"
+keywords:
+  - image-to-3d
+  - 3d reconstruction
+  - benchmark
+  - gaussian splatting
+  - neural radiance fields
+  - diffusion models
+preferred-citation:
+  type: article
+  title: "Benchmarking Feed-Forward Single-Image 3D Reconstruction Across Triplane, Gaussian, Point-Aware, and Structured Latent Paradigms"
+  authors:
+    - family-names: Anand
+      given-names: Anubhav
+      affiliation: "Amity University Uttar Pradesh, India"
+  year: 2026
+  note: "Manuscript under review"

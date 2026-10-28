@@ -1,5 +1,10 @@
 # PROJECT STATUS & HANDOFF (Updated 2026-10-17)
 
+> **Historical document.** The protocol numbers below (36-pose search, σ = 1.5 smoothing,
+> k = 4 colour transfer) describe an intermediate state. The final protocol is defined by
+> commit `09131e61` and documented in the repository README (72-pose search, k = 7 / σ = 1.10,
+> k = 6 colour transfer, 8 + 8 TRELLIS steps). Keep this file for run history only.
+
 ## 1. Current Milestone Summary
 - **v54 Smoke Run (Oct 16, 2026)**: Completed 10/10 objects across all 3 core engines (TripoSR, LGM, TRELLIS) on a single 15.6 GB Tesla T4 with zero OOMs (analysis/v54_smoke_results/).
 - **Post-v54 Forensic Audit & Codebase Rewrite (Oct 17, 2026)**:

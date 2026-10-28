@@ -1,18 +1,17 @@
 \begin{table*}[t]
 \centering
-\caption{Unified Empirical Benchmark on Google Scanned Objects (GSO) --- measured on NVIDIA Tesla T4 (15.6\,GB VRAM) under a single locked upright protocol ($n=10$ canonical objects, 40 evaluations). Best per column in \textbf{bold}, second best \underline{underlined}.}
-\label{tab:unified_comparison}
-{\renewcommand{\arraystretch}{1.25}
+\caption{Unified 4-engine benchmark on the 10 canonical GSO objects (40 evaluations, code\_sha 09131e61).}
+\label{tab:unified_4engines_10}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{llcccccccccccl}
+\begin{tabular}{lccccccccccc}
 \toprule
-\textbf{Method} & \textbf{Paradigm} & $n$ & \textbf{Lat.\,(s)} $\downarrow$ & \textbf{VRAM\,(GB)} $\downarrow$ & \textbf{CD} $\downarrow$ & \textbf{F@0.1} $\uparrow$ & \textbf{F@0.2} $\uparrow$ & \textbf{F@0.5} $\uparrow$ & \textbf{PSNR\,(dB)} $\uparrow$ & \textbf{LPIPS} $\downarrow$ & \textbf{Vertices $|V|$} & \textbf{Faces $|F|$} & \textbf{Representation} \\
+\textbf{Engine} & \textbf{Lat.\,(s)} & \textbf{VRAM\,(GB)} & \textbf{CD} & \textbf{F@0.1} & \textbf{F@0.2} & \textbf{F@0.5} & \textbf{PSNR\,(dB)} & \textbf{LPIPS} & \textbf{$|V|$} & \textbf{$|F|$} & \textbf{Size\,(MB)} \\
 \midrule
-\textbf{TripoSR} \cite{triposr2024} & Triplane NeRF & 10/10 & $\mathbf{3.55 \pm 0.39}$ & $\mathbf{2.32 \pm 0.00}$ & $0.1627 \pm 0.0717$ & $0.7183 \pm 0.2106$ & $0.9170 \pm 0.0968$ & $0.9982 \pm 0.0029$ & $\underline{18.15 \pm 3.15}$ & $\underline{0.2623 \pm 0.0991}$ & $\underline{74.1 \pm 42.2\text{K}}$ & $\underline{148.1 \pm 84.4\text{K}}$ & .glb ($256^3$ MC) \\
-\textbf{LGM} \cite{lgm2024} & 3D Gaussians & 10/10 & $\underline{11.18 \pm 1.27}$ & $\underline{5.19 \pm 0.00}$ & $\underline{0.1249 \pm 0.0631}$ & $\underline{0.8098 \pm 0.1881}$ & $0.9470 \pm 0.0969$ & $0.9987 \pm 0.0035$ & $\mathbf{18.22 \pm 2.55}$ & $0.2743 \pm 0.0860$ & $404.9 \pm 168.4\text{K}$ & $811.8 \pm 337.8\text{K}$ & .ply (3DGS) / .obj \\
-\textbf{SPAR3D} \cite{spar3d2025} & Point + DMTet & 10/10 & $34.93 \pm 1.60$ & $9.17 \pm 0.02$ & $0.1258 \pm 0.0502$ & $0.8082 \pm 0.1706$ & $\underline{0.9636 \pm 0.0555}$ & $\mathbf{1.0000 \pm 0.0000}$ & $17.07 \pm 2.60$ & $0.2719 \pm 0.0799$ & $\mathbf{29.0 \pm 17.6\text{K}}$ & $\mathbf{41.7 \pm 22.3\text{K}}$ & .glb (DMTet + PBR) \\
-\textbf{TRELLIS} \cite{trellis2024} & SLAT Flow & 10/10 & $21.58 \pm 7.09$ & $7.01 \pm 0.85$ & $\mathbf{0.0869 \pm 0.0399}$ & $\mathbf{0.9230 \pm 0.1160}$ & $\mathbf{0.9786 \pm 0.0368}$ & $\underline{0.9999 \pm 0.0004}$ & $17.42 \pm 3.16$ & $\mathbf{0.2116 \pm 0.0683}$ & $434.6 \pm 268.9\text{K}$ & $869.3 \pm 537.8\text{K}$ & .glb (FlexiCubes) \\
+\textbf{TripoSR} & $3.77 \pm 0.78$ & $2.32 \pm 0.00$ & $0.1591 \pm 0.0766$ & $0.7359 \pm 0.2330$ & $0.9194 \pm 0.0885$ & $0.9988 \pm 0.0018$ & $19.02 \pm 3.18$ & $0.2389 \pm 0.0888$ & $70.0\text{K} \pm 33.9\text{K}$ & $139.9\text{K} \pm 67.7\text{K}$ & $7.26 \pm 3.57$ \\
+\textbf{LGM} & $11.35 \pm 1.36$ & $5.19 \pm 0.00$ & $0.1197 \pm 0.0606$ & $0.8217 \pm 0.1927$ & $0.9502 \pm 0.0893$ & $0.9991 \pm 0.0030$ & $17.55 \pm 2.45$ & $0.2915 \pm 0.0983$ & $410.5\text{K} \pm 162.3\text{K}$ & $823.0\text{K} \pm 325.3\text{K}$ & $44.63 \pm 17.89$ \\
+\textbf{SPAR3D} & $37.19 \pm 1.44$ & $9.17 \pm 0.02$ & $0.1205 \pm 0.0544$ & $0.8250 \pm 0.1741$ & $0.9671 \pm 0.0595$ & $1.0000 \pm 0.0001$ & $18.54 \pm 3.26$ & $0.2226 \pm 0.0827$ & $28.4\text{K} \pm 18.6\text{K}$ & $41.0\text{K} \pm 22.2\text{K}$ & $2.62 \pm 1.65$ \\
+\textbf{TRELLIS} & $21.98 \pm 6.65$ & $6.72 \pm 0.67$ & $0.0827 \pm 0.0386$ & $0.9266 \pm 0.1257$ & $0.9829 \pm 0.0376$ & $1.0000 \pm 0.0000$ & $19.97 \pm 2.52$ & $0.1914 \pm 0.0556$ & $394.0\text{K} \pm 233.3\text{K}$ & $788.1\text{K} \pm 466.6\text{K}$ & $42.78 \pm 25.72$ \\
 \bottomrule
 \end{tabular}%
-}}
+}
 \end{table*}

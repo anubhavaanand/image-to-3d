@@ -44,3 +44,9 @@ TRELLIS/
 # local credentials
 .hf_token
 .env
+
+# Large per-run render dumps (kept locally for audit only)
+results/srgb_*/
+results/batch1_v17/
+results/batch2_v24/
+results/unified_results_4engines_100obj_partial.csv

@@ -40,7 +40,7 @@ except Exception as _exc:  # pragma: no cover - only needed for the GT mesh rend
     pyrender = None
     print(f"[rebuild_figures] pyrender unavailable: {_exc}", flush=True)
 
-ROOT = Path("/home/anubhavanand/Desktop/reasearch papers")
+ROOT = Path(os.environ.get("BENCH_ROOT", Path(__file__).resolve().parents[2]))
 BENCH = ROOT / "image-to-3d-benchmark"
 
 GSO_ZUP_TO_YUP_4X4 = np.array(
@@ -74,11 +74,15 @@ ENGINE_COLORS = {
     "TRELLIS": (27, 158, 119),
 }
 
+FINAL_B1 = ROOT / "kaggle_runs" / "final_batch1_100obj" / "outputs"
+FINAL_B2 = ROOT / "kaggle_runs" / "final_batch2_100obj" / "outputs"
+
+# Single-source figures: the final 400-evaluation run at code_sha 09131e61.
 ENGINE_QUAL_DIRS = {
-    "TripoSR": BENCH / "results" / "batch1_v17" / "triposr" / "qualitative",
-    "LGM": BENCH / "results" / "batch1_v17" / "lgm" / "qualitative",
-    "SPAR3D": BENCH / "results" / "batch2_v24" / "spar3d" / "qualitative",
-    "TRELLIS": BENCH / "results" / "batch2_v24" / "trellis" / "qualitative",
+    "TripoSR": FINAL_B1 / "triposr" / "qualitative",
+    "LGM": FINAL_B1 / "lgm" / "qualitative",
+    "SPAR3D": FINAL_B2 / "spar3d" / "qualitative",
+    "TRELLIS": FINAL_B2 / "trellis" / "qualitative",
 }
 GSO_DIR = ROOT / "data" / "gso"
 CSV_PATH = BENCH / "results" / "unified_results_4engines.csv"
@@ -333,13 +337,15 @@ def main():
         (15, 23, 42),
     )
 
+    lat = df.groupby("engine")["latency_s"].mean()
+    vram = df.groupby("engine")["vram_peak_gb"].mean()
     col_headers = [
         ("Input Image (2D)", "1024px RGBA Centered"),
         ("Ground Truth (3D)", "Watertight GSO Scan"),
-        ("TripoSR (Feed-Fwd)", "3.55s | 2.32 GB VRAM"),
-        ("LGM (4-View GS)", "11.18s | 5.19 GB VRAM"),
-        ("SPAR3D (Point-Diff)", "34.93s | 9.17 GB VRAM"),
-        ("TRELLIS (SLAT Flow)", "21.58s | 7.01 GB VRAM"),
+        ("TripoSR (Feed-Fwd)", f"{lat['TripoSR']:.2f}s | {vram['TripoSR']:.2f} GB VRAM"),
+        ("LGM (4-View GS)", f"{lat['LGM']:.2f}s | {vram['LGM']:.2f} GB VRAM"),
+        ("SPAR3D (Point-Diff)", f"{lat['SPAR3D']:.2f}s | {vram['SPAR3D']:.2f} GB VRAM"),
+        ("TRELLIS (SLAT Flow)", f"{lat['TRELLIS']:.2f}s | {vram['TRELLIS']:.2f} GB VRAM"),
     ]
     for c_i, (h1, h2) in enumerate(col_headers):
         cx = left_label_w + c_i * (cell + pad_x)
