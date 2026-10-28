@@ -7,6 +7,9 @@ authors:
     given-names: Anubhav
     affiliation: "Amity University Uttar Pradesh, India"
 year: 2026
+version: "1.0.0"
+date-released: "2026-10-28"
+license: MIT
 repository-code: "https://github.com/anubhavaanand/image-to-3d"
 keywords:
   - image-to-3d

@@ -13,17 +13,23 @@ This directory holds the measured benchmark data. Keep the canonical files; trea
 
 Both CSVs are produced by `scripts/rebuild_figures.py` / the Kaggle kernels and are the source of every number in the manuscript.
 
+## Provenance of the n = 100 block
+
+Both final kernels ran at code commit `09131e61568d98401e71861bc27fdce6637b2f20` (each output directory contains a `code_sha.txt`). The run directories are named `batch1_100obj_v35` and `batch2_100obj_v35`; both produced 100 rows per engine (400 total, 0 failures).
+
+`batch1_100obj/` is tracked for history but is **not** the final run — its `code_sha.txt` records `2b16bfc`, an earlier 100-object pass. Never cite its numbers; use `unified_results_4engines_100obj.csv`.
+
 ## Reproducing
 
 The canonical CSVs were built from the final Kaggle run outputs, which live outside this repository:
 
 ```bash
-python scripts/merge_batches.py ../kaggle_runs/final_batch1_100obj/outputs \
-                                 ../kaggle_runs/final_batch2_100obj/outputs
+python scripts/merge_batches.py ../kaggle_runs/batch1_100obj_v35/outputs \
+                                 ../kaggle_runs/batch2_100obj_v35/outputs
 python scripts/rebuild_figures.py
 ```
 
-`merge_batches.py` collects `*_results.json` files, de-duplicates by `(engine, sample_id)`, and writes the unified CSV/TeX plus the Pareto figure. The `results/batch*/` directories kept in git are partial historical copies and do not contain all four engines for every run.
+`merge_batches.py` collects `*_results.json` files, de-duplicates by `(engine, sample_id)`, and writes the unified CSV/TeX plus the Pareto figure. Other `results/batch*/` directories kept in git are partial historical copies and do not contain all four engines for every run.
 
 ## Run history (not tracked)
 

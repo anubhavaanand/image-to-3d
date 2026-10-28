@@ -26,7 +26,7 @@ Measured on a Tesla T4 (15.6 GB) with the protocol below. Best per column in **b
 | SPAR3D | 0.1142 ± 0.0528 | 0.8368 ± 0.1588 | 19.17 ± 2.93 | 0.2126 ± 0.0707 | 37.54 ± 0.53 | 9.17 | 0.1028 |
 | TRELLIS | **0.0786 ± 0.0366** | **0.9374 ± 0.1028** | **20.51 ± 2.89** | **0.1849 ± 0.0605** | 20.46 ± 6.78 | 6.65 mean / 10.45 max | **0.0695** |
 
-TRELLIS wins 73/100 objects on CD and 72/100 on F@0.1. SPAR3D is second on every quality metric and produces the most compact meshes (2.16 ± 1.08 MB).
+TRELLIS is best on 73/100 objects by CD and 72/100 by F@0.1 (ties included). SPAR3D is second on every quality metric and produces the most compact meshes (2.16 ± 1.08 MB).
 
 ## Statistical significance
 
@@ -53,6 +53,7 @@ Two-sided paired Wilcoxon signed-rank tests over the 100 shared objects:
 ```text
 image-to-3d-benchmark/
 ├── README.md
+├── LICENSE                       # MIT (code only; weights keep their own terms)
 ├── CITATION.cff
 ├── AGENTS.md                     # technical context for contributors/agents
 ├── app.py                        # Gradio demo
@@ -62,9 +63,8 @@ image-to-3d-benchmark/
 │   ├── COMPILE.md                # CUDA extension build guide
 │   └── PROJECT_STATUS.md         # historical run log
 ├── kaggle/
-│   ├── kernel.ipynb              # canonical notebook
-│   ├── batch1/                   # TripoSR + LGM kernel
-│   ├── batch2/                   # TRELLIS + SPAR3D kernel
+│   ├── batch1/                   # TripoSR + LGM kernel (final v35 run)
+│   ├── batch2/                   # TRELLIS + SPAR3D kernel (final v35 run)
 │   ├── triposr_only/             # isolated TripoSR run
 │   └── verify/                   # render verification kernel
 ├── results/
@@ -121,11 +121,11 @@ kaggle kernels push -p kaggle/batch1   # TripoSR + LGM
 kaggle kernels push -p kaggle/batch2   # TRELLIS + SPAR3D
 ```
 
-Upload `handpicked.txt` as a kernel input to reproduce the exact 100-object catalog. Kernel outputs are downloaded into `kaggle_runs/final_batch*/outputs`; figure regeneration expects those directories plus `data/gso` alongside the repository:
+Upload `handpicked.txt` as a kernel input to reproduce the exact 100-object catalog. Kernel outputs are downloaded into `kaggle_runs/batch*_100obj_v35/outputs`; figure regeneration expects those directories plus `data/gso` alongside the repository:
 
 ```bash
-python scripts/merge_batches.py ../kaggle_runs/final_batch1_100obj/outputs \
-                                 ../kaggle_runs/final_batch2_100obj/outputs
+python scripts/merge_batches.py ../kaggle_runs/batch1_100obj_v35/outputs \
+                                 ../kaggle_runs/batch2_100obj_v35/outputs
 python scripts/rebuild_figures.py        # set BENCH_ROOT if the repo is not in the default location
 ```
 
@@ -152,6 +152,8 @@ See [results/README.md](results/README.md) for the canonical CSV/TeX files and t
 }
 ```
 
+This repository is tagged [`v1.0.0`](https://github.com/anubhavaanand/image-to-3d/releases/tag/v1.0.0). The measurements were produced at code commit `09131e61568d98401e71861bc27fdce6637b2f20`; use that SHA, not the Kaggle kernel version number, when referring to the exact run.
+
 ## License and model terms
 
-Benchmark code is provided for research use. Evaluated models and their weights retain their original licenses — several are non-commercial (check each model card before redistribution). GSO assets are CC-BY 4.0.
+The benchmark harness in this repository is released under the [MIT License](LICENSE). That license does not extend to third-party model weights, third-party source code, or the GSO dataset. Evaluated models retain their original licenses — several are non-commercial — so check each model card before redistributing weights or derivative meshes. GSO assets are CC-BY 4.0.
