@@ -69,7 +69,7 @@ image-to-3d-benchmark/
 │   └── verify/                   # render verification kernel
 ├── results/
 │   ├── README.md                 # which files are canonical
-│   ├── unified_results_4engines.csv        # canonical-10
+│   ├── unified_results_4engines.csv        # canonical-10 subset (40 rows)
 │   └── unified_results_4engines_100obj.csv # n = 100
 ├── scripts/
 │   ├── merge_batches.py          # merge per-engine JSON into the unified CSV/TeX

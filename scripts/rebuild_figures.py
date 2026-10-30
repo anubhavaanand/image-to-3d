@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Figure generator for the 4-Engine 3D Benchmark paper:
-1. paper/figures/qualitative_comparison.png (Full 10-object x 6-column comparison from batch1_v17 + batch2_v24)
+1. paper/figures/qualitative_comparison.png (Full 10-object x 6-column comparison from final v35 runs)
 2. paper/figures/gso10_3d_showcase.png (3D Circular Multi-Angle Turntable Showcase + Top-3 Cleanest 4-Engine Strip)
 
 Ground-truth meshes are rendered as smooth, textured, watertight triangle meshes with
