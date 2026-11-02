@@ -3,10 +3,22 @@ Production App — Image to 3D Model
 ====================================
 Upload any photo → background removed → 3D model generated → download GLB.
 
+Paper: Benchmarking Feed-Forward Single-Image 3D Reconstruction Across
+       Triplane, Gaussian, Point-Aware, and Structured Latent Paradigms
+
+Verified T4 benchmark numbers (n=100, code 09131e6):
+  | Engine | Latency | VRAM | CD   | F@0.1 |
+  |--------|---------|------|------|-------|
+  | TripoSR | 3.66 s | 2.32 GB | 0.137 | 0.790 |
+  | LGM     | 11.69 s| 5.19 GB | 0.128 | 0.796 |
+  | SPAR3D  | 37.54 s| 9.17 GB | 0.114 | 0.837 |
+  | TRELLIS | 20.46 s| 6.65 GB | 0.079 | 0.937 |
+
 Engines available:
-  • TripoSR  (<0.5s, ~5 GB VRAM) — fastest, good for quick previews
-  • TRELLIS  (~10s,  ~16-24 GB VRAM) — highest quality mesh
-  • LGM      (~5s,  ~10 GB VRAM) — Gaussian output (PLY)
+  • TripoSR  (3.66 s, 2.32 GB VRAM) — fastest, lowest VRAM
+  • TRELLIS  (20.46 s, 6.65 GB VRAM) — highest quality (best CD, F@0.1, PSNR)
+  • LGM      (11.69 s, 5.19 GB VRAM) — Gaussian output (PLY)
+  • SPAR3D   (37.54 s, 9.17 GB VRAM) — most compact meshes
 
 Run locally:
     pip install gradio
@@ -68,7 +80,7 @@ def _get_engine(name: str):
         if name == "TripoSR":
             e = TriposrEngine(device=DEVICE)
         elif name == "TRELLIS":
-            e = TrellisEngine(device=DEVICE, output_format="mesh", slat_steps=12, sparse_steps=12)
+            e = TrellisEngine(device=DEVICE, output_format="mesh", slat_steps=8, sparse_steps=8)
         elif name == "LGM":
             e = LGMEngine(device=DEVICE)
         else:
@@ -205,11 +217,12 @@ DESCRIPTION = """
 
 Upload any photo of an object and get a downloadable 3D model.
 
-| Engine | Speed | Quality | VRAM | Best for |
-|--------|-------|---------|------|----------|
-| **TripoSR** | <0.5s | Good | ~5 GB | Quick previews, real-time |
-| **TRELLIS** | ~10s | Excellent | ~16-24 GB | Production assets, clean meshes |
-| **LGM** | ~5s | Very Good | ~10 GB | Detailed Gaussian outputs |
+| Engine | Latency (T4) | VRAM (T4) | CD | F@0.1 |
+|--------|-------------|-----------|-----|-------|
+| **TripoSR** | 3.66 s | 2.32 GB | 0.137 | 0.790 |
+| **LGM** | 11.69 s | 5.19 GB | 0.128 | 0.796 |
+| **SPAR3D** | 37.54 s | 9.17 GB | 0.114 | 0.837 |
+| **TRELLIS** | 20.46 s | 6.65 GB | 0.079 | 0.937 |
 
 > **Tip:** For best results, use a clean image with the object centred and well-lit.  
 > Background removal is applied automatically.
@@ -298,3 +311,7 @@ if __name__ == "__main__":
         share=True,         # generates a public gradio.live link
         show_error=True,
     )
+
+
+# Paper
+Benchmarking Feed-Forward Single-Image 3D Reconstruction Across Triplane, Gaussian, Point-Aware, and Structured Latent Paradigms
